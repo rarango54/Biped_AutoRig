@@ -122,13 +122,19 @@ def bufferGrp(objects, prefix='buffer'):
         buff = cmds.group(n=name, p=t, em=True, a=True)
         cmds.parent(buff, parent, r=True)
         cmds.parent(t, buff, r=True)
-    pass
+
+def make_proxies(proxy_dict, parent_grp):
+    for key in proxy_dict:
+            loc = cmds.spaceLocator(n=key, a=True)
+            cmds.xform(loc, t=proxy_dict[key])
+    cmds.parent(list(proxy_dict), parent_grp)
+    return list(proxy_dict)
+
+
 
 if __name__ == "__main__":
     
-    sel = cmds.ls(sl=True)
-    zero_transforms(sel)
-    # offset parent matrix messes up the position of the buffer group
-    bufferGrp(sel, 'macro')
+    loc = cmds.spaceLocator(n='test', r=True)[0]
+    cmds.xform(loc, t=[0,1,0])
 
     pass
