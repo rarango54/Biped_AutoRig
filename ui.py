@@ -18,31 +18,48 @@ def launch_ui():
     cmds.text(
         label="""Naming Convention:
         {side}_{component}_#_{obj type}
-        e.g. L_index_3_JNT""", h=40)
+        e.g. L_index_3_JNT""", h=50)
     cmds.separator()
     
     global char_name_input
-    char_name_input = cmds.textField(docTag="character_name", w = 130)
-    cmds.button(label = "Create Proxies", w=130, c="build_proxy_rig()")
-    cmds.button(label = "Delete Proxies", w=130, c="")
+    char_name_input = cmds.textField(docTag="character_name", w = 130,
+        text="character")
+    cmds.button(label = "Create Proxies", w=130, c="build_proxy()")
+    cmds.button(label = "Delete Proxies", w=130, c="delete_proxy()")
     
     cmds.button(label="Build Rig", w=130, c="build_rig()")
-    cmds.button(label="Delete Rig", w=130, c="")
+    cmds.button(label="Delete Rig", w=130, c="delete_rig()")
     
+    cmds.button(label="Build Skeleton", w=130, c="")
+    cmds.button(label="UpdateSkeleton", w=130, c="")
+    cmds.button(label="Callisthenic Anim", w=130, c="")
+    
+    cmds.button(label="Export Master File", w=130, c="")
     
 
     cmds.showWindow()
 
 
-def build_proxy_rig():
+def build_proxy():
     char_name = cmds.textField(char_name_input, q=True, text=True)
     char_rig = BaseRig(char_name)
     char_rig.construct_proxy()
+
+def delete_proxy():
+    cmds.delete("global_PRX")
 
 def build_rig():
     char_name = cmds.textField(char_name_input, q=True, text=True)
     char_rig = BaseRig(char_name)
     char_rig.construct_rig()
+
+def delete_rig():
+    joints = cmds.listRelatives("joints_GRP", ad=True)
+    ctrls = cmds.listRelatives("ctrls_GRP", ad=True)
+    misc = cmds.listRelatives("misc_GRP", ad=True)
+    cmds.delete(joints)
+    cmds.delete(ctrls)
+    cmds.delete(misc)
 
 if __name__ == "__main__":
     

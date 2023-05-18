@@ -10,30 +10,42 @@ from body_modules.arm import Arm
 
 class BaseRig(object):
     
-    def __init__(self, character_name):
+    def __init__(self, char_name):
         
-        self.name = character_name
+        self.char_name = char_name
 
 
     def construct_proxy(self):
-        module = mt.Module()
-        module.proxy_rig()
-    
-    def delete_proxy(self):
-        pass
+        base = Base(self.char_name)
+        spine = Spine()
+        arm = Arm("L")
+        # module = mt.Module()
+        
+        base.setup()
+        base.build_proxy()
+        spine.build_proxy(base.base_prx)
+        arm.build_proxy(base.base_prx)
+        # module.build_proxy(base.base_prx)
     
     def construct_rig(self):
-        module = mt.Module()
-        module.rig("joint1", "nurbsCircle1", "nurbsCircle1")
-    
-    def delete_rig(self):
-        pass
+        base = Base(self.char_name)
+        spine = Spine()
+        L_arm = Arm("L")
+        # R_arm = Arm("R")
+        
+        base.build_rig()
+        spine.build_rig(base.root_jnt, base.global_sub_ctrl, 
+            base.global_sub_ctrl)
+        L_arm.build_rig(spine.chest_up_jnt, spine.chest_up_ctrl, 
+            [spine.cog_sub_ctrl, spine.chest_up_ctrl])
+        cmds.hide(base.base_prx)
 
 
 if __name__ == "__main__":
     
-    BaseRig("Apollo").construct_proxy()
+    Apollo = BaseRig("Apollo")
     Apollo.construct_proxy()
     Apollo.construct_rig()
     
+    base.root_jnt
     pass

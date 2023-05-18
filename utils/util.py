@@ -108,27 +108,16 @@ def insert_scaleInvJoint(controls):
         cmds.connectAttr(f'{target}.scale', f'{sclJoint}.inverseScale')
         cmds.setAttr(f'{sclJoint}.drawStyle', 2) # 2 = None
     
-def bufferGrp(objects, prefix='buffer'):
+def buffer_grp(target, prefix='buffer_GRP'):
     """ creates a buffer group on top of all the target transforms """
-    if type(objects) is str: # in case only one object is selected to make the loop work with a list
-        targets = [objects]
-    else:
-        targets = objects
-    for t in targets:
-        suffix = t.split('_')[-1]
-        name = t.replace(f'{suffix}', f'{prefix}GRP')
-        parent = cmds.listRelatives(t, p=True)
-        
-        buff = cmds.group(n=name, p=t, em=True, a=True)
-        cmds.parent(buff, parent, r=True)
-        cmds.parent(t, buff, r=True)
-
-def make_proxies(proxy_dict, parent_grp):
-    for key in proxy_dict:
-            loc = cmds.spaceLocator(n=key, a=True)
-            cmds.xform(loc, t=proxy_dict[key])
-    cmds.parent(list(proxy_dict), parent_grp)
-    return list(proxy_dict)
+    suffix = target.split('_')[-1]
+    name = target.replace(f'{suffix}', prefix)
+    parent = cmds.listRelatives(target, p=True)
+    
+    buff_grp = cmds.group(n=name, p=target, em=True, r=True)
+    cmds.parent(buff_grp, parent)
+    cmds.parent(target, buff_grp)
+    return buff_grp
 
 
 

@@ -1,24 +1,66 @@
 import maya.cmds as cmds
 
 class Control(object):
-    """ description of the class """
-        
+    """all classmethods return a single transform with
+    correctly named nurbsCruve Shapes
+    
+    default rotation orders:
+        globals      :   xzy
+        limbs       :   zyx
+        spine       :   zyx
+        neck        :   yzx   
+    """
+    
+    # keep dimension input to only 1 "size" or "radius" where possible
+    
     @classmethod
-    def double_circle_ctrl(cls, name, radius, color='green', rotOrder='xzy'):
+    def sphere(cls, name, radius, color='sky', rotOrder='xyz'):
+        ctrl = cmds.group(n=name, em=True, w=True)
+        for ori in [(0,1,0), (1,0,0), (0,0,1)]:
+            circle = cmds.circle(n=name, c=(0,0,0), nr=ori,
+                sw=360, r=radius, d=3, ch=0
+                )[0]
+            shape = cmds.listRelatives(circle, c=True, s=True)
+            cmds.parent(shape, ctrl, r=True, s=True)
+            cmds.delete(circle)
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
+    def double_circle(cls, name, radius, color='green', rotOrder='xzy'):
         ctrl = cmds.group(n=name, em=True, w=True)
         for i in [1, 0.9]:
-            circle = cmds.circle(n=name, c=(0,0,0), nr=(0,1,0), sw=360, r=i*radius, d=3, ch=0)[0]
+            circle = cmds.circle(n=name, c=(0,0,0), nr=(0,1,0),
+                sw=360, r=i*radius, d=3, ch=0
+                )[0]
             shape = cmds.listRelatives(circle, c=True, s=True)
             cmds.parent(shape, ctrl, r=True, s=True)
             cmds.delete(circle)
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
+    
+    @classmethod
+    def arrow(cls, name, size, color="brown", rotOrder="xzy"):
+        le = size
+        wid = size
+        ctrl = cmds.curve(n=name, d=1,p=[
+            (wid/3,0,-le),(wid/2,0,0),
+            (0.8*wid,0,-le/5),(wid,0,le/7),
+            (0,0,le),
+            (-wid,0,le/7),(-0.8*wid,0,-le/5),
+            (-wid/2,0,0),(-wid/3,0,-le),
+            (wid/3,0,-le)]
+            )
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
 
     @classmethod
-    def stack_circles_ctrl(cls, name, radius, color='pink', rotOrder='zxy'):
+    def stack_circles(cls, name, radius, color='pink', rotOrder='zxy'):
         ctrl = cmds.group(n=name, em=True, w=True)
         for i in [1, -1]:
-            circle = cmds.circle(n=name, c=(0,i*radius/30,0), nr=(0,1,0), sw=360, r=radius, d=3, ch=0)[0]
+            circle = cmds.circle(n=name, c=(0,i*radius/30,0), nr=(0,1,0),
+                sw=360, r=radius, d=3, ch=0
+                )[0]
             shape = cmds.listRelatives(circle, c=True, s=True)
             cmds.parent(shape, ctrl, r=True, s=True)
             cmds.delete(circle)
@@ -26,8 +68,9 @@ class Control(object):
         return ctrl
 
     @classmethod
-    def swoop_circle_ctrl(cls, name, radius, color='yellow', rotOrder='zyx'):
-        ctrl = cmds.circle(c=(0,0,0), nr=(0,1,0),r=radius,d=3,s=8,ch=0)[0]
+    def swoop_circle(cls, name, radius, color='yellow', rotOrder='zyx'):
+        ctrl = cmds.circle(c=(0,0,0), nr=(0,1,0),
+            r=radius,d=3,s=8,ch=0)[0]
         for n, i in enumerate([[3,7], [1,5]]):
             for p in i:
                 if n == 0:
@@ -39,14 +82,16 @@ class Control(object):
         return ctrl
     
     @classmethod
-    def square_ctrl(cls, name, size, color='brown', rotOrder='xyz'):
+    def square(cls, name, size, color='brown', rotOrder='xyz'):
         len=size/2
-        ctrl = cmds.curve(n=name, d=1,p=[(-len,0,-len),(-len,0,len),(len,0,len),(len,0,-len),(-len,0,-len)])
+        ctrl = cmds.curve(n=name, d=1, p=[(-len,0,-len),(-len,0,len),
+            (len,0,len),(len,0,-len),(-len,0,-len)]
+            )
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
 
     @classmethod
-    def box_ctrl(cls, name, width, height, depth, color='yellow', rotOrder='xyz'):
+    def box(cls, name, width, height, depth, color='yellow', rotOrder='xyz'):
         wid = width/2
         hei=height/2
         dep=depth/2
@@ -55,7 +100,12 @@ class Control(object):
         return ctrl
     
     @classmethod
-    def metacarpal_ctrl(cls, name, size, color='blue', rotOrder='zyx'):
+    def cube(cls, name, size, color='yellow', rotOrder='xyz'):
+        ctrl = cls.box(name, size, size, size, color, rotOrder)
+        return ctrl
+    
+    @classmethod
+    def metacarpal(cls, name, size, color='blue', rotOrder='zyx'):
         length = 0.75 * size
         ctrl = cmds.circle(n=name,c=[0, size, length/3],nr=[1,0,0],sw=360,r= length, d=3, s=8,ch=0)[0]
         for n in [4,5,6]:
@@ -65,7 +115,7 @@ class Control(object):
         return ctrl
 
     @classmethod
-    def finger_ctrl(cls, name, width, length, color='blue', rotOrder='zyx'):
+    def finger(cls, name, width, length, color='blue', rotOrder='zyx'):
         wid = width/2
         len = length
         ctrl = cmds.curve(n=name, d=1,p=[(-wid,wid,wid/3),(-wid,-wid,wid/3),(wid,-wid,wid/3),(wid,wid,wid/3),(wid,wid,len),(wid,-wid,len),(wid,-wid,wid/3),(wid,-wid,len),(-wid,-wid,len),(-wid,-wid,wid/3),(-wid,-wid,len),(-wid,wid,len),(-wid,wid,wid/3),(wid,wid,wid/3),(wid,wid,len),(-wid,wid,len)])
@@ -73,7 +123,7 @@ class Control(object):
         return ctrl
     
     @classmethod
-    def metaMaster_ctrl(cls, name, size, color='blue', rotOrder='zyx'):
+    def metaMaster(cls, name, size, color='blue', rotOrder='zyx'):
         len = size * 2.5
         wid = size * 0.5
         hei = size * 1.5
@@ -81,7 +131,6 @@ class Control(object):
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
     # FK
-    # sphere
     # switcher
     # pyramid
     # bendy
@@ -108,7 +157,7 @@ class Control(object):
         cmds.makeIdentity(ctrl, a=True, s=1)
         
     def ctrl_config(self, ctrl, color, rotOrder):
-        """ only to be used inside the 'Controls' classmethods
+        """ only to be used inside the 'Control' classmethods
         assign color to shapes + rename shapes to match transform name + define rotate order """
         
         colors = {
@@ -118,7 +167,8 @@ class Control(object):
             'sky'   :   18,
             'red'   :   13,
             'pink'  :   20,
-            'green' :   14
+            'green' :   14,
+            'grass' :   27
             }
         if color not in colors:
             color = 'green'
@@ -142,10 +192,5 @@ class Control(object):
 
 if __name__ == "__main__":
     
-    #Control.finger_ctrl('finger_CTRL', 0.1, 0.3)
-    #Control.double_circle_ctrl('global_CTRL', 0.5, 'skyblue')
-    Control.box_ctrl('cog_CTRL', 0.5, 0.05, 0.3)
-    #Control.metacarpal_ctrl('meta_CTRL', 0.5)
-    #Control.flip_ctrl('meta_CTRL', 'x', (-1,-1,1))
-    #Control.metaMaster_ctrl('metaMaster_CTRL', 0.3)
+    Control.cube("test", 100)
     pass

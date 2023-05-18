@@ -1,6 +1,6 @@
 import maya.cmds as cmds
 
-from utils import ctrl_library
+from utils.ctrl_library import Control
 from utils import util
 
 
@@ -9,47 +9,87 @@ class Base(object):
     Naming Convention: {side}_{component}_#_{obj type}
     e.g. L_index_3_JNT
     
-    Class attrs should provide downstream with sockets (connection points), parents and spaces
+    Class attrs should provide downstream with 
+    sockets (connection points), parents and spaces
     """
     
-    def __init__(self, character_name):
+    def __init__(self, char_name):
+        
+        self.char_name = char_name
+        self.char_height = None
+        
+        self.main_grp = f"{self.char_name}_GRP"
+        self.geo_grp = "geo_GRP"
+        self.skeleton_grp = "skeleton_GRP"
+        self.ctrls_grp = "ctrls_GRP"
+        self.joints_grp = "joints_GRP"
+        self.misc_grp = "misc_GRP"
 
-        self.ctrls_grp = None
-        self.joints_grp = None
-        self.misc_grp = None
-        self.base_jnt = None
-        self.global_ctrl = None
+        self.root_jnt = "root_JNT"
+        self.global_ctrl = "global_CTRL"
+        self.global_sub_ctrl = "global_sub_CTRL"
+        
+        self.base_prx = "global_PRX"
         
         
-        self.name = None
-        self.geo_grp = None
-        self.main_grp = None
-        self.skeleton_grp = None
-
-        
-    
-    def setup(self, name):
-        self.name = name
+    def setup(self):
+        if cmds.objExists(self.main_grp):
+            return
         # initial outliner group hierarchy
-        self.main_grp = cmds.group(n=f"{self.name}_GRP", em=True)
-        self.skeleton_grp = cmds.group(n="skeleton_GRP", p=self.main_grp, em=True)
-        self.ctrls_grp = cmds.group(n="ctrls_GRP", p= self.skeleton_grp, em=True)
-        self.joints_grp = cmds.group(n="joints_GRP", p=self.skeleton_grp, em=True)
-        self.misc_grp = cmds.group(n="misc_GRP", p=self.skeleton_grp, em=True)
+        cmds.group(n=self.main_grp, em=True)
+        cmds.group(n=self.geo_grp, p=self.main_grp, em=True)
+        cmds.group(n=self.skeleton_grp, p=self.main_grp, em=True)
+        cmds.group(n=self.ctrls_grp, p= self.skeleton_grp, em=True)
+        cmds.group(n=self.joints_grp, p=self.skeleton_grp, em=True)
+        cmds.group(n=self.misc_grp, p=self.skeleton_grp, em=True)
         
-        # sets for bind joints, ctrls
+        cmds.select(cl=True)
+        bj = cmds.sets(n="bind_joints")
+        cmds.sets(bj, n="joints")
+        sp = cmds.sets(n="spine")
+        hn = cmds.sets(n="neck_head")
+        la = cmds.sets(n="L_arm")
+        ra = cmds.sets(n="R_arm")
+        lf = cmds.sets(n="L_fingers")
+        rf = cmds.sets(n="R_fingers")
+        ll = cmds.sets(n="L_leg")
+        rl = cmds.sets(n="R_leg")
+        cmds.sets([sp,hn,la,ra,lf,rf,ll,rl], n="body_ctrls")
+        
 
     def build_proxy(self):
-        pass
+        Control.double_circle(self.base_prx, 50)
     
     def build_rig(self):
-        pass
-    
+        # joints
+        cmds.select(cl=True)
+        cmds.joint(n=self.root_jnt, rad=4)
+        cmds.parent(self.root_jnt, self.joints_grp)
+        
+        # ctrls
+        Control.double_circle(self.global_ctrl, 100)
+        Control.arrow(self.global_sub_ctrl, 80, "grass")
+        cmds.parent(self.global_ctrl, self.ctrls_grp)
+        cmds.parent(self.global_sub_ctrl, self.global_ctrl)
+        
+        cmds.addAttr(self.global_ctrl, ln='sub_ctrl_vis',
+            at="double", dv=0 ,min=0 ,max=1 ,k=True)
+        cmds.setAttr(f'{self.global_ctrl}.sub_ctrl_vis',
+            e=True, k=True, l=False)
+        cmds.connectAttr(f"{self.global_ctrl}.sub_ctrl_vis", 
+            f"{self.global_sub_ctrl}.visibility")
+        
+        # sets
+        cmds.sets(self.root_jnt, add="joints")
+        cmds.sets(self.global_ctrl, self.global_sub_ctrl, add="body_ctrls")
 
 if __name__ == "__main__":
     
-    sp = spine.Spine()
-    print(sp.hip_jnt)
-    print(sp.main_grp)
+    test = Base("Apollo")
+    test.setup()
+    test.build_proxy()
+    
+    test.build_rig()
+    
     
     pass
