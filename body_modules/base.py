@@ -2,6 +2,8 @@ import maya.cmds as cmds
 
 from utils.ctrl_library import Control
 from utils import util
+from utils import rig
+
 
 
 class Base(object):
@@ -58,7 +60,11 @@ class Base(object):
         
 
     def build_proxy(self):
-        Control.double_circle(self.base_prx, 50)
+        global_prx = Control.double_circle(self.base_prx, 50)
+        cmds.connectAttr(f"{global_prx}.sy", f"{global_prx}.sx")
+        cmds.connectAttr(f"{global_prx}.sy", f"{global_prx}.sz")
+        cmds.setAttr(f"{global_prx}.sx", e=True, cb=True, k=False, l=True)
+        cmds.setAttr(f"{global_prx}.sz", e=True, cb=True, k=False, l=True)
     
     def build_rig(self):
         # joints
@@ -68,16 +74,20 @@ class Base(object):
         
         # ctrls
         Control.double_circle(self.global_ctrl, 100)
-        Control.arrow(self.global_sub_ctrl, 80, "grass")
+        sub = Control.arrow(self.global_sub_ctrl, 80, "grass")
+        sub_shape = cmds.listRelatives(sub, c=True, s=True)[0]
         cmds.parent(self.global_ctrl, self.ctrls_grp)
         cmds.parent(self.global_sub_ctrl, self.global_ctrl)
+
+        rig.sub_ctrl_vis(self.global_sub_ctrl)
         
-        cmds.addAttr(self.global_ctrl, ln='sub_ctrl_vis',
-            at="double", dv=0 ,min=0 ,max=1 ,k=True)
-        cmds.setAttr(f'{self.global_ctrl}.sub_ctrl_vis',
-            e=True, k=True, l=False)
-        cmds.connectAttr(f"{self.global_ctrl}.sub_ctrl_vis", 
-            f"{self.global_sub_ctrl}.visibility")
+        # connections
+        cmds.parentConstraint(
+            self.global_sub_ctrl, self.root_jnt, 
+            w=1)
+        cmds.scaleConstraint(
+            self.global_sub_ctrl, self.root_jnt, 
+            o=(1,1,1), w=1)
         
         # sets
         cmds.sets(self.root_jnt, add="joints")

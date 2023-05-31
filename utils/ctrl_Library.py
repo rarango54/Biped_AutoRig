@@ -69,7 +69,7 @@ class Control(object):
 
     @classmethod
     def swoop_circle(cls, name, radius, color='yellow', rotOrder='zyx'):
-        ctrl = cmds.circle(c=(0,0,0), nr=(0,1,0),
+        ctrl = cmds.circle(n=name, c=(0,0,0), nr=(0,1,0),
             r=radius,d=3,s=8,ch=0)[0]
         for n, i in enumerate([[3,7], [1,5]]):
             for p in i:
@@ -93,9 +93,14 @@ class Control(object):
     @classmethod
     def box(cls, name, width, height, depth, color='yellow', rotOrder='xyz'):
         wid = width/2
-        hei=height/2
-        dep=depth/2
-        ctrl = cmds.curve(n=name, d=1,p=[(-wid,hei,-dep),(-wid,-hei,-dep),(wid,-hei,-dep),(wid,hei,-dep),(wid,hei,dep),(wid,-hei,dep),(wid,-hei,-dep),(wid,-hei,dep),(-wid,-hei,dep),(-wid,-hei,-dep),(-wid,-hei,dep),(-wid,hei,dep),(-wid,hei,-dep),(wid,hei,-dep),(wid,hei,dep),(-wid,hei,dep)])
+        hei = height/2
+        dep = depth/2
+        ctrl = cmds.curve(n=name, d=1,p=[
+            (-wid,hei,-dep),(-wid,-hei,-dep),(wid,-hei,-dep),(wid,hei,-dep),
+            (wid,hei,dep),(wid,-hei,dep),(wid,-hei,-dep),(wid,-hei,dep),
+            (-wid,-hei,dep),(-wid,-hei,-dep),(-wid,-hei,dep),(-wid,hei,dep),
+            (-wid,hei,-dep),(wid,hei,-dep),(wid,hei,dep),(-wid,hei,dep)
+            ])
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
     
@@ -105,9 +110,23 @@ class Control(object):
         return ctrl
     
     @classmethod
+    def octahedron(cls, name, size, color='yellow', rotOrder='xyz'):
+        x = size
+        bottom = (0,-x*1.3,0)
+        tip = (0,x*1.3,0)
+        ctrl = cmds.curve(n=name, d=1,p=[
+            (x,0,-x),bottom,(x,0,x),(-x,0,x),bottom,(-x,0,-x),(x,0,-x),
+            (x,0,x),tip,(-x,0,x),(-x,0,-x),tip,(x,0,-x)
+            ])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
     def metacarpal(cls, name, size, color='blue', rotOrder='zyx'):
         length = 0.75 * size
-        ctrl = cmds.circle(n=name,c=[0, size, length/3],nr=[1,0,0],sw=360,r= length, d=3, s=8,ch=0)[0]
+        ctrl = cmds.circle(n=name,c=[0, size, length/3],
+            nr=[1,0,0],sw=360,r= length, d=3, s=8,ch=0
+            )[0]
         for n in [4,5,6]:
             shape = cmds.listRelatives(ctrl, s=True)[0]
             cmds.setAttr(shape +f'.controlPoints[{n}].yValue', size)
@@ -115,10 +134,15 @@ class Control(object):
         return ctrl
 
     @classmethod
-    def finger(cls, name, width, length, color='blue', rotOrder='zyx'):
+    def fk_box(cls, name, width, length, color='blue', rotOrder='zyx'):
         wid = width/2
         len = length
-        ctrl = cmds.curve(n=name, d=1,p=[(-wid,wid,wid/3),(-wid,-wid,wid/3),(wid,-wid,wid/3),(wid,wid,wid/3),(wid,wid,len),(wid,-wid,len),(wid,-wid,wid/3),(wid,-wid,len),(-wid,-wid,len),(-wid,-wid,wid/3),(-wid,-wid,len),(-wid,wid,len),(-wid,wid,wid/3),(wid,wid,wid/3),(wid,wid,len),(-wid,wid,len)])
+        ctrl = cmds.curve(n=name, d=1,p=[
+            (-wid,wid,wid/3),(-wid,-wid,wid/3),(wid,-wid,wid/3),(wid,wid,wid/3),
+            (wid,wid,len),(wid,-wid,len),(wid,-wid,wid/3),(wid,-wid,len),
+            (-wid,-wid,len),(-wid,-wid,wid/3),(-wid,-wid,len),(-wid,wid,len),
+            (-wid,wid,wid/3),(wid,wid,wid/3),(wid,wid,len),(-wid,wid,len)
+            ])
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
     
@@ -127,17 +151,49 @@ class Control(object):
         len = size * 2.5
         wid = size * 0.5
         hei = size * 1.5
-        ctrl = cmds.curve(n=name, d=3,p=[(0,-hei/2,0),(0,-hei/2,len),(0,-hei/2,len),(0,-hei/2,len),(wid,-hei/4,len),(wid,hei/4,len),(0,hei/2,len),(0,hei/2,len),(0,hei/2,len),(0,hei/2,0),(0,hei/2,0),(0,hei/2,0),(wid,hei/4,0),(wid,-hei/4,0),(0,-hei/2,0)])
+        ctrl = cmds.curve(n=name, d=3,p=[
+            (0,-hei/2,0),(0,-hei/2,len),(0,-hei/2,len),(0,-hei/2,len),
+            (wid,-hei/4,len),(wid,hei/4,len),(0,hei/2,len),(0,hei/2,len),
+            (0,hei/2,len),(0,hei/2,0),(0,hei/2,0),(0,hei/2,0),
+            (wid,hei/4,0),(wid,-hei/4,0),(0,-hei/2,0)
+            ])
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
+    
+    @classmethod
+    def shoulder(cls, name, size, color='blue', rotOrder='zyx'):
+        # distance, width, length
+        d = size * 0.8
+        w = size * 0.1
+        s = size * 0.5
+        h = size * 0.8
+        ctrl = cmds.curve(n=name, d=3,p=[
+            (-s,0,d),(-s,0,d+w),(-s,h/2,d+w),(0,h,d+w),(s,h/2,d+w),
+            (s,0,d+w),(s,0,d),(s,0,d-w),(s,h/2,d-w),(0,h,d-w),
+            (-s,h/2,d-w),(-s,0,d-w),(-s,0,d)
+            ])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
+    def switcher(cls, name, size, color='blue', rotOrder='xyz'):
+        # depth, width1 = narrower tip, width2 = wider butt
+        d = size
+        w1 = size * 0.3
+        w2 = size * 0.6
+        ctrl = cmds.curve(
+            n=name, d=1,p=[
+            (0,0,d),(w1,0,d),(w2,0,-d),(0,0,-d),(0,w2,-d),(0,w1,d),
+            (0,0,d),(-w1,0,d),(-w2,0,-d),(0,0,-d),(0,-w2,-d),(0,-w1,d),
+            (0,0,d)])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
     # FK
-    # switcher
-    # pyramid
     # bendy
-    # shoulder
 
     @classmethod
-    def flip_ctrl(cls, ctrl, orient='z', scale=(1,1,1)):
+    def flip_shape(cls, ctrl, orient='z', scale=(1,1,1)):
         """ choose orientation of ctrl's shape & then invert it on any axis """
         
         orients = {
@@ -192,5 +248,5 @@ class Control(object):
 
 if __name__ == "__main__":
     
-    Control.cube("test", 100)
+    Control.switcher("test", 2, "green")
     pass

@@ -42,7 +42,7 @@ class Spine(object):
                 [0, 140, 0], "sphere", 2, "sky", 
                 ["tx","r","s"]),
             "spine_end_PRX" : (
-                [0, 155, 0], "cube", 3, "sky", 
+                [0, 155, 0], "octahedron", 2, "sky", 
                 ["tx","r","s"])
         }
     
@@ -54,7 +54,7 @@ class Spine(object):
         end = proxies[-1]
         for nr, i in enumerate(proxies[2:-1]):
             cmds.parent(i, hip)
-            buff = util.buffer_grp(i)
+            buff = util.buffer_grp(i, "buffer_prx_GRP")
             pc = cmds.pointConstraint((end, hip), buff, 
                 n=i.replace("PRX", "POINT"))[0]
             w0 = (nr+1)*0.25
@@ -72,13 +72,64 @@ class Spine(object):
         cmds.parent(self.hip_jnt, joint_socket)
 
     def controls(self, ctrl_socket):
-        # create L_ctrls, mirror
-        pass
+        size = util.get_distance(self.hip_jnt, self.chest_up_jnt)/2
+        cog = Control.box(self.cog_ctrl, 
+                size*1.5, size/2, size*1.2, "yellow", "zxy")
+        cog_sub = Control.box(self.cog_sub_ctrl,
+                size*1.8, size/4, size*1.5, "pink", "zxy")
+        # cmds.matchTransform([cog, cog_sub], "cog_PRX", pos=True)
+        # cmds.parent(cog_sub, cog)
+        
+        hip = Control.swoop_circle(self.hip_ctrl, size*0.75, "brown", "yzx")
+        waist = Control.stack_circles(self.waist_ctrl, size, "brown", "zxy")
+        chest = Control.swoop_circle(self.chest_ctrl, size, "yellow", "zyx")
+        chest_sub = Control.swoop_circle(self.chest_sub_ctrl, size*0.9, "pink", "zyx")
+        chest_up = Control.swoop_circle(self.chest_up_ctrl, size*0.75, "brown", "zyx")
+        
+        relations = {
+            cog : ("cog_PRX", ctrl_socket),
+            cog_sub : ("cog_PRX", self.cog_ctrl),
+            hip : ("hip_PRX", self.cog_sub_ctrl),
+            waist : ("waist_PRX", self.cog_sub_ctrl),
+            chest: ("chest_PRX", self.cog_sub_ctrl),
+            chest_sub : ("chest_PRX", self.chest_ctrl),
+            chest_up : ("chest_up_PRX", self.chest_sub_ctrl)
+        }
+        
+        for ctrl in list(relations):
+            cmds.matchTransform(ctrl, relations[ctrl][0], pos=True)
+            cmds.parent(ctrl, relations[ctrl][1])
+        util.zero_transforms(list(relations))
+        
+        # separators?
+        rig.sub_ctrl_vis(self.cog_sub_ctrl)
+        rig.sub_ctrl_vis(self.chest_sub_ctrl)
+        
+        cmds.sets(cog, cog_sub, hip, waist, 
+                chest, chest_sub, chest_up,
+                add="spine")
 
     def build_rig(self, joint_socket, ctrl_socket, spaces):
         self.skeleton(joint_socket)
         self.controls(ctrl_socket)
-        # create all rig connections
+        
+        waist_buff = util.buffer_grp(self.waist_ctrl)
+        cmds.orientConstraint(
+            [self.chest_sub_ctrl, self.hip_ctrl], waist_buff,
+            o=(0,0,0), sk=("x", "z"), w=1)
+        util.zero_transforms(self.waist_ctrl)
+        
+        connections = {
+            self.hip_ctrl : self.hip_jnt,
+            self.waist_ctrl : self.waist_jnt,
+            self.chest_sub_ctrl : self.chest_jnt,
+            self.chest_up_ctrl : self.chest_up_jnt
+        }
+        
+        for ctrl in list(connections):
+            jnt = connections[ctrl]
+            cmds.parentConstraint(ctrl, jnt, w=1)
+            cmds.scaleConstraint(ctrl, jnt, o=(1,1,1), w=1)
 
 
 

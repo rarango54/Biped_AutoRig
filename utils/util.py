@@ -108,10 +108,10 @@ def insert_scaleInvJoint(controls):
         cmds.connectAttr(f'{target}.scale', f'{sclJoint}.inverseScale')
         cmds.setAttr(f'{sclJoint}.drawStyle', 2) # 2 = None
     
-def buffer_grp(target, prefix='buffer_GRP'):
-    """ creates a buffer group on top of all the target transforms """
+def buffer_grp(target, newfix='buffer_GRP'):
+    """ creates a buffer group on top of the target transform """
     suffix = target.split('_')[-1]
-    name = target.replace(f'{suffix}', prefix)
+    name = target.replace(f'{suffix}', newfix)
     parent = cmds.listRelatives(target, p=True)
     
     buff_grp = cmds.group(n=name, p=target, em=True, r=True)
@@ -123,7 +123,7 @@ def buffer_grp(target, prefix='buffer_GRP'):
 
 if __name__ == "__main__":
     
-    loc = cmds.spaceLocator(n='test', r=True)[0]
-    cmds.xform(loc, t=[0,1,0])
+    loc = cmds.spaceLocator(n='test_LOC', r=True)[0]
+    buffer_grp(loc)
 
     pass

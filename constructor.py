@@ -5,7 +5,7 @@ from misc import module_template as mt
 
 from body_modules.base import Base
 from body_modules.spine import Spine
-from body_modules.arm import Arm
+from body_modules.arm import Arms
 
 
 class BaseRig(object):
@@ -18,26 +18,28 @@ class BaseRig(object):
     def construct_proxy(self):
         base = Base(self.char_name)
         spine = Spine()
-        arm = Arm("L")
+        arms = Arms()
         # module = mt.Module()
         
         base.setup()
         base.build_proxy()
         spine.build_proxy(base.base_prx)
-        arm.build_proxy(base.base_prx)
+        arms.build_proxy(base.base_prx)
         # module.build_proxy(base.base_prx)
     
     def construct_rig(self):
         base = Base(self.char_name)
         spine = Spine()
-        L_arm = Arm("L")
-        # R_arm = Arm("R")
+        arms = Arms()
         
         base.build_rig()
-        spine.build_rig(base.root_jnt, base.global_sub_ctrl, 
-            base.global_sub_ctrl)
-        L_arm.build_rig(spine.chest_up_jnt, spine.chest_up_ctrl, 
-            [spine.cog_sub_ctrl, spine.chest_up_ctrl])
+        spine.build_rig(
+            base.root_jnt, base.global_sub_ctrl, 
+            [base.global_sub_ctrl])
+        arms.build_rig(
+            spine.chest_up_jnt, spine.chest_up_ctrl, base.global_sub_ctrl, 
+            [base.global_sub_ctrl, spine.cog_sub_ctrl, spine.chest_up_ctrl])
+            
         cmds.hide(base.base_prx)
 
 

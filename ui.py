@@ -22,19 +22,20 @@ def launch_ui():
     cmds.separator()
     
     global char_name_input
-    char_name_input = cmds.textField(docTag="character_name", w = 130,
-        text="character")
+    char_name_input = cmds.textField(w = 130, text="character_name")
+    
+    cmds.rowColumnLayout(p=layout, adj = True, nc=2)
     cmds.button(label = "Create Proxies", w=130, c="build_proxy()")
     cmds.button(label = "Delete Proxies", w=130, c="delete_proxy()")
     
     cmds.button(label="Build Rig", w=130, c="build_rig()")
     cmds.button(label="Delete Rig", w=130, c="delete_rig()")
     
-    cmds.button(label="Build Skeleton", w=130, c="")
-    cmds.button(label="UpdateSkeleton", w=130, c="")
-    cmds.button(label="Callisthenic Anim", w=130, c="")
+    # cmds.button(label="Build Skeleton", w=130, c="")
+    # cmds.button(label="UpdateSkeleton", w=130, c="")
+    # cmds.button(label="Callisthenic Anim", w=130, c="")
     
-    cmds.button(label="Export Master File", w=130, c="")
+    # cmds.button(label="Export Master File", w=130, c="")
     
 
     cmds.showWindow()
