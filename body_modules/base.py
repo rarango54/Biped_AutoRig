@@ -1,6 +1,6 @@
 import maya.cmds as cmds
 
-from utils.ctrl_library import Control
+from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 
@@ -30,9 +30,7 @@ class Base(object):
         self.root_jnt = "root_JNT"
         self.global_ctrl = "global_CTRL"
         self.global_sub_ctrl = "global_sub_CTRL"
-        
-        self.base_prx = "global_PRX"
-        
+                
         
     def setup(self):
         if cmds.objExists(self.main_grp):
@@ -47,7 +45,7 @@ class Base(object):
         
         cmds.select(cl=True)
         bj = cmds.sets(n="bind_joints")
-        cmds.sets(bj, n="joints")
+        js = cmds.sets(n="joints")
         sp = cmds.sets(n="spine")
         hn = cmds.sets(n="neck_head")
         la = cmds.sets(n="L_arm")
@@ -58,23 +56,16 @@ class Base(object):
         rl = cmds.sets(n="R_leg")
         cmds.sets([sp,hn,la,ra,lf,rf,ll,rl], n="body_ctrls")
         
-
-    def build_proxy(self):
-        global_prx = Control.double_circle(self.base_prx, 50)
-        cmds.connectAttr(f"{global_prx}.sy", f"{global_prx}.sx")
-        cmds.connectAttr(f"{global_prx}.sy", f"{global_prx}.sz")
-        cmds.setAttr(f"{global_prx}.sx", e=True, cb=True, k=False, l=True)
-        cmds.setAttr(f"{global_prx}.sz", e=True, cb=True, k=False, l=True)
     
     def build_rig(self):
-        # joints
+        # joint
         cmds.select(cl=True)
         cmds.joint(n=self.root_jnt, rad=4)
         cmds.parent(self.root_jnt, self.joints_grp)
         
         # ctrls
-        Control.double_circle(self.global_ctrl, 100)
-        sub = Control.arrow(self.global_sub_ctrl, 80, "grass")
+        Nurbs.double_circle(self.global_ctrl, 100)
+        sub = Nurbs.arrow(self.global_sub_ctrl, 80, "grass")
         sub_shape = cmds.listRelatives(sub, c=True, s=True)[0]
         cmds.parent(self.global_ctrl, self.ctrls_grp)
         cmds.parent(self.global_sub_ctrl, self.global_ctrl)
@@ -88,6 +79,14 @@ class Base(object):
         cmds.scaleConstraint(
             self.global_sub_ctrl, self.root_jnt, 
             o=(1,1,1), w=1)
+        cmds.connectAttr(f"{self.global_ctrl}.scaleY", f"{self.global_ctrl}.scaleX")
+        cmds.connectAttr(f"{self.global_ctrl}.scaleY", f"{self.global_ctrl}.scaleZ")
+        cmds.setAttr(
+            f"{self.global_ctrl}.scaleX", e = True, 
+            lock = True, keyable = False, channelBox = False)
+        cmds.setAttr(
+            f"{self.global_ctrl}.scaleZ", e = True, 
+            lock = True, keyable = False, channelBox = False)
         
         # sets
         cmds.sets(self.root_jnt, add="joints")
@@ -97,9 +96,9 @@ if __name__ == "__main__":
     
     test = Base("Apollo")
     test.setup()
-    test.build_proxy()
+    # test.build_proxy()
     
-    test.build_rig()
+    # test.build_rig()
     
     
     pass

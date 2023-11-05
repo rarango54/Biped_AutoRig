@@ -1,7 +1,7 @@
 import maya.cmds as cmds
 
 from utils import util
-from utils.ctrl_Library import Control
+from utils.ctrl_Library import Nurbs
 
 
 ###############################
@@ -61,15 +61,15 @@ class HandRig(object):
                 ctrlLength = util.get_distance(fj, fjChild)
                 
                 if fj == finger[-1]:
-                    fc = Control.metacarpal_ctrl(name, self.ctrlSize, color)
+                    fc = Nurbs.metacarpal_ctrl(name, self.ctrlSize, color)
                 else:
-                    fc = Control.finger_ctrl(name, self.ctrlSize, ctrlLength, color)
+                    fc = Nurbs.finger_ctrl(name, self.ctrlSize, ctrlLength, color)
                 cmds.matchTransform(fc, fj, pos=True,rot=True, scl=True)
                 
                 fingerCtrls.append(fc)
                 
                 if side == 'R': # flip ctrl's shape orientation so it points to finger tip
-                    Control.flip_ctrl(fc, 'z', (1, -1, -1))
+                    Nurbs.flip_ctrl(fc, 'z', (1, -1, -1))
                     
                 # parent next ctrl to current one, moving up the chain backwards
                 if fj == finger[0]: # skip finger tip ctrl
@@ -90,10 +90,10 @@ class HandRig(object):
         if side == 'R':
             color = 'red'
         
-        metaMaster = Control.metaMaster_ctrl(f'{side}_metaMaster_CTRL', self.ctrlSize, color)
+        metaMaster = Nurbs.metaMaster_ctrl(f'{side}_metaMaster_CTRL', self.ctrlSize, color)
         mov = 1
         if side == 'R':
-            Control.flip_ctrl(metaMaster, 'z', (-1, -1, -1))
+            Nurbs.flip_ctrl(metaMaster, 'z', (-1, -1, -1))
             mov = -1
         cmds.parent(metaMaster, self.handCtrlGrp)
         cmds.matchTransform(metaMaster, self.pinkyJnts[-1], pos=True,rot=True)

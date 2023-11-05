@@ -1,11 +1,11 @@
 import maya.cmds as cmds
 
-class Control(object):
+class Nurbs(object):
     """all classmethods return a single transform with
     correctly named nurbsCruve Shapes
     
     default rotation orders:
-        globals      :   xzy
+        globals     :   xzy
         limbs       :   zyx
         spine       :   zyx
         neck        :   yzx   
@@ -189,13 +189,41 @@ class Control(object):
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
     
+    @classmethod
+    def lineconnect(cls, proxymodule, nodes):
+        objects = [nodes] if isinstance(nodes, str) else nodes
+        positions = []
+        args = {}
+        for n, obj in enumerate(objects):
+            pos = cmds.xform(obj, q = True, t = True, worldSpace = True)
+            positions.append(pos)
+            args[f"p{n}"] = pos
+        curve = eval(
+            f"cmds.curve(n = f'{proxymodule}_line_CRV', degree = 1, p = {positions})")
+        shape = cmds.rename(
+                    cmds.listRelatives(curve, children = True, shapes = True),
+                    f"{curve}Shape")
+        for n, obj in enumerate(nodes):
+            # connect objs through decomp_mtx to curve's control cvs
+            dmtx = cmds.createNode("decomposeMatrix", n = f"{proxymodule}_cv{n}_DM")
+            cmds.connectAttr(f"{obj}.worldMatrix[0]", f"{dmtx}.inputMatrix")
+            cmds.connectAttr(f"{dmtx}.outputTranslateX", 
+                             f"{curve}Shape.controlPoints[{n}].xValue")
+            cmds.connectAttr(f"{dmtx}.outputTranslateY", 
+                             f"{curve}Shape.controlPoints[{n}].yValue")
+            cmds.connectAttr(f"{dmtx}.outputTranslateZ", 
+                             f"{curve}Shape.controlPoints[{n}].zValue")
+        # drawingOverride settings
+        cmds.setAttr(f'{shape}.overrideEnabled', 1)
+        cmds.setAttr(f"{shape}.overrideDisplayType", 2)
+        cmds.setAttr(f"{shape}.alwaysDrawOnTop", 1)
+        return curve
     # FK
     # bendy
 
     @classmethod
     def flip_shape(cls, ctrl, orient='z', scale=(1,1,1)):
         """ choose orientation of ctrl's shape & then invert it on any axis """
-        
         orients = {
             'x'  :   [f'{ctrl}.rotateY', 90],
             'y'  :   [f'{ctrl}.rotateX', -90],
@@ -213,9 +241,8 @@ class Control(object):
         cmds.makeIdentity(ctrl, a=True, s=1)
         
     def ctrl_config(self, ctrl, color, rotOrder):
-        """ only to be used inside the 'Control' classmethods
+        """ only to be used inside the 'Nurbs' classmethods
         assign color to shapes + rename shapes to match transform name + define rotate order """
-        
         colors = {
             'yellow':   17,
             'brown' :   24,
@@ -224,29 +251,26 @@ class Control(object):
             'red'   :   13,
             'pink'  :   20,
             'green' :   14,
-            'grass' :   27
-            }
+            'grass' :   27,
+            'grey'  :   3,
+            'white' :   16,}
         if color not in colors:
             color = 'green'
-            
         shapes = cmds.listRelatives(ctrl, c=True, s=True)
         for s in shapes:
             cmds.setAttr(f'{s}.overrideEnabled', 1)
             cmds.setAttr(f'{s}.overrideColor', colors[color])
-            
             cmds.rename(s, f'{ctrl}Shape')
-        
         rotOrders = {
             'xyz'   :   0,
             'yzx'   :   1,
             'zxy'   :   2,
             'xzy'   :   3,
             'yxz'   :   4,
-            'zyx'   :   5
-        }
+            'zyx'   :   5,}
         cmds.setAttr(f'{ctrl}.ro', rotOrders[rotOrder])
 
 if __name__ == "__main__":
     
-    Control.switcher("test", 2, "green")
+    Nurbs.switcher("test", 2, "green")
     pass

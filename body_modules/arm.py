@@ -1,6 +1,8 @@
 import maya.cmds as cmds
 
-from utils.ctrl_library import Control
+from body_proxies.proxyarm import ProxyArm
+
+from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 
@@ -12,198 +14,98 @@ class Arms(object):
         self.module_name = "L_arm"
         
         self.clavicle_jnt = "L_clavicle_JNT"
-        self.shoulder_jnt = "L_shoulder_JNT"
+        self.uparm_jnt = "L_uparm_JNT"
         self.elbow_jnt = "L_elbow_JNT"
         self.hand_jnt = "L_hand_JNT"
-        self.hand_end_jnt = "L_handEnd_JNT"
+        self.hand_end_jnt = "L_hand_end_JNT"
 
         self.clavicle_ctrl = "L_clavicle_CTRL"
-        self.shoulderFK_ctrl = "L_shoulderFK_CTRL"
-        self.elbowFK_ctrl = "L_elbowFK_CTRL"
-        self.handFK_ctrl = "L_handFK_CTRL"
-        self.handIK_ctrl = "L_handIK_CTRL"
-        self.wristIK_ctrl = "L_wristIK_CTRL"
+        self.clavicle_driver_grp = "L_clavicle_driver_GRP"
+        self.uparm_FK_ctrl = "L_uparm_FK_CTRL"
+        self.elbow_FK_ctrl = "L_elbow_FK_CTRL"
+        self.hand_FK_ctrl = "L_hand_FK_CTRL"
+        
+        self.hand_IK_ctrl = "L_hand_IK_CTRL"
+        self.wrist_IK_ctrl = "L_wrist_IK_CTRL"
         self.pole_vector_ctrl = "L_armIK_PV_CTRL"
         self.switcher_ctrl = "L_arm_switcher_CTRL"
         
-        self.finger_socket_prx = "L_hand_Apose_PRX"
+        self.finger_socket_prx = "L_hand_PRX"
         self.pole_vector_prx = "L_poleVector_PRX"
         
-        self.proxy_dict = {
-            "L_clavicle_PRX" : (
-                [3, 145, 10], "sphere", 1, "green", 
-                ["r","s"]),
-            "L_shoulder_PRX" : (
-                [15, 150, 0], "cube", 1, "grass", 
-                ["t","r","s"]),
-            "L_elbow_PRX" : (
-                [45, 150, -5], "sphere", 0.5, "grass", 
-                ["t","r","s"]),
-            "L_hand_PRX" : (
-                [75, 150, 0], "octahedron", 0.5, "grass", 
-                ["t", "r", "s"]),
-            "L_handEnd_PRX" : (
-                [85, 150, 0], "sphere", 0.5, "grass", 
-                ["t","r","s"]),
-            "L_poleVector_PRX" : (
-                [45, 150, -65], "arrow", 1.5, "grass", 
-                ["t","r","s"]),
-                
-            "L_shoulder_Apose_PRX" : (
-                [15, 150, 0], "cube", 2.5, "green", 
-                ["r","s"]),
-            "L_elbow_Apose_PRX" : (
-                [45, 150, -5], "sphere", 1.5, "green", 
-                ["ty","r","s"]),
-            "L_hand_Apose_PRX" : (
-                [75, 150, 0], "octahedron", 1.5, "green", 
-                ["s"]),
-            "L_poleVector_Apose_PRX" : (
-                [45, 150, -65], "arrow", 3, "green", 
-                ["t","r","s"]),
-        }
-
-
-    def build_proxy(self, proxy_socket):
-        proxies = rig.make_proxies(self.proxy_dict, 
-            proxy_socket, self.module_name)
-        # A Pose drivers:
-        Ashoulder = proxies[6]
-        Aelbow = proxies[7]
-        Ahand = proxies[8]
-        Apv = proxies[9]
-        # T Pose targets for skeleton build:
-        shoulder = proxies[1]
-        elbow = proxies[2]
-        hand = proxies[3]
-        hand_end = proxies[4]
-        pv = proxies[5]
-        
-        # match joints' future orientation
-        for i in proxies:
-            if i == pv or Apv:
-                continue
-            cmds.rotate(0,90,0, i)
-        
-        Aelbow_buff = util.buffer_grp(Aelbow)
-        cmds.parent(Apv, Aelbow_buff)
-        cmds.connectAttr(f"{Aelbow}.tx", f"{Apv}.tx")
-        
-        Ashould_aim = cmds.group(n=Ashoulder.replace("PRX", "handAim_GRP"),
-            em=True, p=Ashoulder)
-        cmds.parent(Ashould_aim, f"{self.module_name}_proxy_GRP")
-        cmds.aimConstraint(Ahand, Ashould_aim, n=Ashould_aim.replace("GRP", "AIM"),
-            aim=(0,0,1), u=(0,1,0), wut="scene")
-        cmds.orientConstraint(Ashould_aim, Aelbow_buff, mo=True,
-            n=Aelbow.replace("PRX", "ORIENT"))
-        cmds.aimConstraint(Ahand, Aelbow, n=Aelbow.replace("PRX", "AIM"),
-            aim=(0,0,1), u=(0,1,0), wut="scene")
-        cmds.pointConstraint((Ahand, Ashoulder), Aelbow_buff, mo=True,
-            n=Aelbow.replace("PRX", "POINT"))
-        cmds.aimConstraint(Aelbow, Ashoulder, n=Ashoulder.replace("PRX", "AIM"),
-            aim=(0,0,1), u=(0,1,0), wut="scene")
-        cmds.orientConstraint(Ashould_aim, Ahand, mo=False,
-            n=Ahand.replace("PRX", "ORIENT"))
-        
-        should_buff = util.buffer_grp(shoulder)
-        cmds.pointConstraint(Ashoulder, should_buff, mo=False,
-            n=shoulder.replace("PRX", "POINT"))
-        
-        
-        elbow_buff = util.buffer_grp(elbow)
-        cmds.pointConstraint((hand, shoulder), elbow_buff, mo=True,
-                n=Aelbow.replace("PRX", "POINT"))[0]
-        cmds.aimConstraint(elbow, shoulder, n=shoulder.replace("PRX", "AIM"),
-            aim=(0,0,1), u=(0,1,0), wut="scene")
-        cmds.aimConstraint(hand, elbow, n=elbow.replace("PRX", "AIM"),
-            aim=(0,0,1), u=(0,1,0), wut="scene")
-                
-        cmds.parent(hand_end, hand)
-        cmds.parent(hand, should_buff)
-        cmds.parent(pv, elbow_buff)
-        
-        # Tpose should match Apose layout but in a straight line
-        dist = cmds.shadingNode("distanceBetween", 
-                n="L_armLen_DIST", au=True)
-        cmds.connectAttr(
-            f"{Ashoulder}.worldMatrix[0]", f"{dist}.inMatrix1")
-        cmds.connectAttr(
-            f"{Ahand}.worldMatrix[0]", f"{dist}.inMatrix2")
-        cmds.connectAttr(f"{Aelbow}.tx", f"{elbow}.tx")
-        cmds.connectAttr(f"{Aelbow}.tz", f"{elbow}.tz")
-        
-        # connect global scale
-        mult = cmds.shadingNode("multDoubleLinear",
-                n="L_armLen_MDL", au=True)
-        inv = cmds.shadingNode("multiplyDivide",
-                n="L_armLen_MD", au=True)
-        cmds.setAttr(f"{inv}.input1X", 1)
-        cmds.setAttr(f"{inv}.operation", 2)
-        cmds.connectAttr(f"{proxy_socket}.sy", f"{inv}.input2X")
-        cmds.connectAttr(f"{inv}.outputX", f"{mult}.input2")
-        
-        cmds.connectAttr(f"{dist}.distance", f"{mult}.input1")
-        cmds.connectAttr(f"{mult}.output", f"{hand}.tx")
-        
-        rig.proxy_lock(self.proxy_dict)
-        
-        # could hide T pose proxies if stable?
-        
     def skeleton(self, joint_socket):
-        arm_jnts = rig.make_joints(list(self.proxy_dict)[0:5], "zxy", 1.5)
+        parm = ProxyArm()
+        arm_jnts = rig.make_joints(
+                proxies_list = list(parm.proxy_dict)[:5],
+                rot_order = "zxy", 
+                radius = 1.5)
         # clavicle joint needs to have specific orient
-        cmds.joint(self.clavicle_jnt, e=True, oj="none", zso=True)
-        cmds.parent(self.shoulder_jnt, joint_socket)
+        cmds.joint(self.clavicle_jnt, e = True, 
+                   orientJoint = "none", 
+                   zeroScaleOrient = True)
+        cmds.parent(self.uparm_jnt, joint_socket)
         cmds.setAttr(f"{self.clavicle_jnt}.jointOrientY", 90)
-        cmds.parent(self.shoulder_jnt, self.clavicle_jnt)
+        cmds.parent(self.uparm_jnt, self.clavicle_jnt)
         # rest of arm joint orient
-        cmds.joint(self.shoulder_jnt, e=True, 
-                   oj="zyx", sao="yup", ch=True, zso=True)
+        cmds.joint(
+                self.uparm_jnt, e = True, 
+                orientJoint = "zyx", 
+                secondaryAxisOrient = "yup", 
+                children = True, 
+                zeroScaleOrient = True)
         cmds.parent(self.clavicle_jnt, joint_socket)
-        cmds.mirrorJoint(self.clavicle_jnt, myz=True, mb=True, sr=["L_", "R_"])
+        mirr_jnts = cmds.mirrorJoint(
+                self.clavicle_jnt, 
+                mirrorYZ = True, 
+                mirrorBehavior = True, 
+                searchReplace = ["L_", "R_"])
+        
+        cmds.sets(arm_jnts[:-1], add = "bind_joints") # except hand_end_JNT
+        cmds.sets(mirr_jnts[:-1], add = "bind_joints") # except hand_end_JNT
 
-    def controls(self, ctrl_socket, ik_space):
-        fk = [self.clavicle_jnt, self.shoulder_jnt, 
+    def controls(self, ctrl_socket, ik_ctrlparent):
+        parm = ProxyArm()
+        fk = [self.clavicle_jnt, self.uparm_jnt, 
             self.elbow_jnt, self.hand_jnt, self.hand_end_jnt]
         fk_ro = "zyx"
-        fk_size = util.get_distance(self.shoulder_jnt, self.elbow_jnt)/5
+        fk_size = util.get_distance(self.uparm_jnt, self.elbow_jnt)/5
         
         # clavicle ctrl
         # is not in the fk hierarchy
-        dist = util.get_distance(self.clavicle_jnt, self.shoulder_jnt)
-        clav = Control.shoulder(self.clavicle_ctrl, dist, "blue", fk_ro)
+        dist = util.get_distance(self.clavicle_jnt, self.uparm_jnt)
+        clav = Nurbs.shoulder(self.clavicle_ctrl, dist, "blue", fk_ro)
         clav_driver = cmds.group(
             n=clav.replace("CTRL", "driver_GRP"), p=ctrl_socket, em=True)
-        cmds.matchTransform(clav, self.clavicle_jnt, px=True, py=True)
-        cmds.matchTransform(clav, self.shoulder_jnt, pz=True)
-        cmds.rotate(0,90,0, clav, r=True)
+        cmds.matchTransform(clav_driver, self.clavicle_jnt, pos=True, rot=True)
+        cmds.matchTransform(clav, self.clavicle_jnt, px=True, py=True, rot=True)
+        cmds.matchTransform(clav, self.uparm_jnt, pz=True)
         cmds.parent(clav, ctrl_socket)
         util.zero_transforms(clav)
         util.zero_transforms(clav_driver)
-        
+                
         # FK ctrls
-        dist = util.get_distance(self.shoulder_jnt, self.elbow_jnt)
-        fk_should = Control.fk_box(self.shoulderFK_ctrl,
+        dist = util.get_distance(self.uparm_jnt, self.elbow_jnt)
+        fk_uparm = Nurbs.fk_box(self.uparm_FK_ctrl,
             fk_size, dist*0.75, "blue", fk_ro)
-        fk_elbow = Control.fk_box(self.elbowFK_ctrl,
+        fk_elbow = Nurbs.fk_box(self.elbow_FK_ctrl,
             fk_size, dist*0.6, "blue", fk_ro)
-        fk_hand = Control.box(self.handFK_ctrl,
+        fk_hand = Nurbs.box(self.hand_FK_ctrl,
             fk_size, fk_size, fk_size/3, "blue", fk_ro)
         
         # IK ctrls
-        ik_hand = Control.cube(self.handIK_ctrl, fk_size*1.2, "blue", "zxy")
-        ik_wrist = Control.square(self.wristIK_ctrl, fk_size*1.4, "sky", "zxy")
-        Control.flip_shape(ik_wrist, "-y")
-        ik_pv = Control.octahedron(self.pole_vector_ctrl, fk_size/3, "blue")
+        ik_hand = Nurbs.cube(self.hand_IK_ctrl, fk_size*1.2, "blue", "zxy")
+        ik_wrist = Nurbs.square(self.wrist_IK_ctrl, fk_size*1.4, "sky", "zxy")
+        Nurbs.flip_shape(ik_wrist, "-y")
+        ik_pv = Nurbs.octahedron(self.pole_vector_ctrl, fk_size/3, "blue")
         
         # position & parent
         relations = {
-            fk_should : (self.shoulder_jnt, clav_driver),
-            fk_elbow : (self.elbow_jnt, self.shoulderFK_ctrl),
-            fk_hand : (self.hand_jnt, self.elbowFK_ctrl),
-            ik_hand : (self.hand_jnt, ik_space),
-            ik_wrist : (self.hand_jnt, self.handIK_ctrl),
-            ik_pv : ("L_poleVector_PRX", ik_space),
+            fk_uparm : (self.uparm_jnt, clav_driver),
+            fk_elbow : (self.elbow_jnt, self.uparm_FK_ctrl),
+            fk_hand : (self.hand_jnt, self.elbow_FK_ctrl),
+            ik_hand : (self.hand_jnt, ik_ctrlparent),
+            ik_wrist : (self.hand_jnt, self.hand_IK_ctrl),
+            ik_pv : (list(parm.proxy_dict)[5], ik_ctrlparent),
         }
         
         for ctrl in list(relations):
@@ -212,17 +114,17 @@ class Arms(object):
         util.zero_transforms(list(relations))
         
         # switcher
-        switch = Control.switcher(self.switcher_ctrl, dist/6)
-        Control.flip_shape(switch, "-x")
-        cmds.parent(switch, ik_space)
+        switch = Nurbs.switcher(self.switcher_ctrl, dist/6)
+        Nurbs.flip_shape(switch, "-x")
+        cmds.parent(switch, ik_ctrlparent)
         cmds.matchTransform(switch, self.hand_jnt, pos=True, rot=True)
         cmds.move(0, 0, -dist/2, switch, r=True)
         
         
         # R_ctrls & mirroring
         rig.mirror_ctrls([clav, clav_driver], "R_armFK", ctrl_socket)
-        rig.mirror_ctrls([ik_hand, ik_pv], "R_armIK", ik_space)
-        rig.mirror_ctrls([switch], "R_armSwitch", ik_space)
+        rig.mirror_ctrls([ik_hand, ik_pv], "R_armIK", ik_ctrlparent)
+        rig.mirror_ctrls([switch], "R_armSwitch", ik_ctrlparent)
         
         # switcher ctrls follow skeleton
         cmds.parentConstraint(
@@ -235,38 +137,84 @@ class Arms(object):
         cmds.scaleConstraint(
             self.elbow_jnt.replace("L_", "R_"), 
             switch.replace("L_", "R_"), o=(1,1,1), w=1)
-        
-        l_ctrls = [clav, fk_should, fk_elbow, fk_hand,
+                    
+        l_ctrls = [clav, fk_uparm, fk_elbow, fk_hand,
             ik_hand, ik_wrist, ik_pv]
         r_ctrls = [x.replace("L_", "R_") for x in l_ctrls]
-        cmds.sets(l_ctrls, add="L_arm")
-        cmds.sets(r_ctrls, add="R_arm")
+        cmds.sets(l_ctrls, add = "L_arm")
+        cmds.sets(r_ctrls, add = "R_arm")
         
-    def build_rig(self, joint_socket, ctrl_socket, ik_space, spaces):
+    def build_rig(self, joint_socket, ctrl_socket, ik_ctrlparent, spaces):
         self.skeleton(joint_socket)
-        self.controls(ctrl_socket, ik_space)
+        self.controls(ctrl_socket, ik_ctrlparent)
         
-        rig.ikfk(self.shoulder_jnt,
-                 self.elbow_jnt,
-                 self.hand_jnt,
-                 self.hand_end_jnt,
-                 self.switcher_ctrl)
+        # create IK and FK joint chains
+        left_jnts = [self.uparm_jnt, self.elbow_jnt, self.hand_jnt, self.hand_end_jnt]
+        left_switch = self.switcher_ctrl
+        right_jnts = [x.replace("L_", "R_") for x in left_jnts]
+        right_switch = self.switcher_ctrl.replace("L_", "R_")
+        rig.ikfk_chains(left_jnts, left_switch)
+        rig.ikfk_chains(right_jnts, right_switch)
+        for s in ["L_", "R_"]:
+            # clavicle
+            util.connect_transforms(f"{s}clavicle_CTRL", f"{s}clavicle_driver_GRP")
+            cmds.parentConstraint(
+                f"{s}clavicle_driver_GRP", f"{s}clavicle_JNT", mo=True, w=1)
+            cmds.scaleConstraint(
+                f"{s}clavicle_driver_GRP", f"{s}clavicle_JNT", 
+                mo=True, w=1)
+        # FK setup
+        fk_ctrls = [self.uparm_FK_ctrl,
+                    self.elbow_FK_ctrl,
+                    self.hand_FK_ctrl]
+        for fk in fk_ctrls:
+            util.connect_transforms(fk, fk.replace("CTRL", "JNT"), t=False)
+            r_fk = fk.replace("L_", "R_")
+            util.connect_transforms(r_fk, r_fk.replace("CTRL", "JNT"), t=False)
         
-        # create all rig connections
-
-
+        # IK setup
+        for s in ["L_", "R_"]:
+            ikh_arm = f"{s}arm_IKR"
+            arm_IKargs = {
+                "name" : ikh_arm,
+                "startJoint" : f"{s}uparm_IK_JNT",
+                "endEffector" : f"{s}hand_IK_JNT",
+                "solver" : "ikRPsolver"
+            }
+            cmds.ikHandle(**arm_IKargs)
+            cmds.parent(f"{s}arm_IKR", "misc_GRP")
+            # cmds.connectAttr(f"{s}hand_IK_CTRL.worldMatrix[0]", f"{s}arm_IKR.offsetParentMatrix")
+            # cmds.xform(f"{s}arm_IKR", translation=[0, 0, 0], rotation=[0, 0, 0], scale=[1, 1, 1])
+            ee = cmds.ikHandle(ikh_arm, q=True, ee=True) # get effector
+            cmds.rename(ee, f"{s}arm_IK_EFF")
+            
+            cmds.poleVectorConstraint(f"{s}armIK_PV_CTRL",f"{s}arm_IKR")
+            cmds.parentConstraint(f"{s}wrist_IK_CTRL", ikh_arm, mo=True, w=1)
+            # hand follow
+            ikh_hand = f'{s}hand_IKS'
+            hand_IKargs = {
+                'name' : ikh_hand,
+                'startJoint' : f"{s}hand_IK_JNT",
+                'endEffector' : f"{s}hand_end_IK_JNT",
+                'solver' : 'ikSCsolver'
+            }
+            cmds.ikHandle(**hand_IKargs)
+            cmds.parent(f'{s}hand_IKS', 'misc_GRP')
+            cmds.parentConstraint(f"{s}wrist_IK_CTRL", ikh_hand, mo=True, w=1)
+            cmds.scaleConstraint(
+                f"{s}wrist_IK_CTRL", f"{s}hand_IK_JNT", mo=True, w=1)
+            
 
 if __name__ == "__main__":
     
-    
-    # L_arm = Arm('L')
-    # L_arm.build_proxy("global_PRX")
-    # L_arm.build_rig("chest_up_JNT", "chest_up_CTRL", 
-    #     ["cog_sub_CTRL", "chest_up_CTRL"])\
-    for i in ["L_shoulder_Apose_PRX", "L_elbow_Apose_PRX", "L_hand_Apose_PRX"]:
-        rot = cmds.xform(i, q=True, ro=True, ws=True)
-        pos = cmds.xform(i, q=True, t=True, ws=True)
-        jnt = i.replace("Apose_PRX", "JNT")
-        cmds.xform(jnt, ro=rot, t=pos, ws=True)
+    socket = cmds.group(n="proxies_GRP", em=True, w=True)
+    socket1 = cmds.group(n="testjoint_GRP", em=True, w=True)
+    socket2 = cmds.group(n="testctrl_GRP", em=True, w=True)
+    socket3 = cmds.group(n="testikspace_GRP", em=True, w=True)
+    parm = ProxyArm()
+    parm.build_proxy(socket)
+    arm = Arms()
+    arm.build_rig(socket1, socket2, socket3, [socket])
+    help(rig.ikfk)
     
     pass
