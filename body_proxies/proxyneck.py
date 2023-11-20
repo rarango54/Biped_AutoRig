@@ -19,7 +19,7 @@ class ProxyNeck(object):
                 [0, 167, 5], "cube", 3, "red", 
                 ["tx","r","s"]),
             "head_end_PRX" : (
-                [0, 185, 5], "octahedron", 1, "pink", 
+                [0, 183, 5], "octahedron", 1, "pink", 
                 ["tx","tz","r","s"])
         }
         proxies = list(self.proxy_dict)

@@ -15,12 +15,12 @@ class Base(object):
     sockets (connection points), parents and spaces
     """
     
-    def __init__(self, char_name):
+    def __init__(self):
         
-        self.char_name = char_name
-        self.char_height = None
+        # self.char_name = char_name
+        # self.char_height = None
         
-        self.main_grp = f"{self.char_name}_GRP"
+        self.main_grp = f"rig_GRP"
         self.geo_grp = "geo_GRP"
         self.skeleton_grp = "skeleton_GRP"
         self.ctrls_grp = "ctrls_GRP"
@@ -30,18 +30,26 @@ class Base(object):
         self.root_jnt = "root_JNT"
         self.global_ctrl = "global_CTRL"
         self.global_sub_ctrl = "global_sub_CTRL"
+        
+        self.tuning_panel = "RIG_TUNING_PANEL"
                 
         
     def setup(self):
         if cmds.objExists(self.main_grp):
             return
         # initial outliner group hierarchy
-        cmds.group(n=self.main_grp, em=True)
-        cmds.group(n=self.geo_grp, p=self.main_grp, em=True)
-        cmds.group(n=self.skeleton_grp, p=self.main_grp, em=True)
-        cmds.group(n=self.ctrls_grp, p= self.skeleton_grp, em=True)
-        cmds.group(n=self.joints_grp, p=self.skeleton_grp, em=True)
-        cmds.group(n=self.misc_grp, p=self.skeleton_grp, em=True)
+        cmds.group(n = self.main_grp, em = True)
+        cmds.group(n = self.tuning_panel, p = self.main_grp, em = True)
+        cmds.group(n = self.geo_grp, p = self.main_grp, em = True)
+        cmds.group(n = self.skeleton_grp, p = self.main_grp, em = True)
+        cmds.group(n = self.ctrls_grp, p = self.skeleton_grp, em = True)
+        cmds.group(n = self.joints_grp, p = self.skeleton_grp, em = True)
+        cmds.group(n = self.misc_grp, p = self.skeleton_grp, em = True)
+        
+        all_grps = [self.main_grp, self.geo_grp, self.skeleton_grp, self.ctrls_grp,
+                    self.joints_grp, self.misc_grp, self.tuning_panel]
+        for node in all_grps:
+            util.lock(node)
         
         cmds.select(cl=True)
         bj = cmds.sets(n="bind_joints")
@@ -54,7 +62,7 @@ class Base(object):
         rf = cmds.sets(n="R_fingers")
         ll = cmds.sets(n="L_leg")
         rl = cmds.sets(n="R_leg")
-        cmds.sets([sp,hn,la,ra,lf,rf,ll,rl], n="body_ctrls")
+        cmds.sets([sp,hn,la,ra,lf,rf,ll,rl], n = "body_ctrls")
         
     
     def build_rig(self):

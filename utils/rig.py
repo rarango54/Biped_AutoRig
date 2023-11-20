@@ -16,12 +16,12 @@ def make_proxies(proxy_dict, parent_grp, module_name):
             color = proxy_dict[proxy][3]
             loc = cmds.spaceLocator(n = proxy, absolute = True)[0]
             temp_obj = eval(f'Nurbs.{shape}("temp", {size}, "{color}")')
-            temp_shape = cmds.listRelatives(temp_obj, s=True)
+            temp_shape = cmds.listRelatives(temp_obj, shapes = True)
             for s in temp_shape:
                 # make visible through geo like xRay
                 cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
-            cmds.parent(temp_shape, loc, r=True, s=True)
-            new_shapes = cmds.listRelatives(loc, s=True)
+            cmds.parent(temp_shape, loc, relative = True, shape = True)
+            new_shapes = cmds.listRelatives(loc, shapes = True)
             for s in new_shapes:
                 cmds.rename(s, f"{loc}Shape")
             cmds.delete(temp_obj)
@@ -34,7 +34,7 @@ def proxy_lock(proxy_dict):
     for proxy in list(proxy_dict):
         lock_axes = proxy_dict[proxy][4]
         for axis in lock_axes:
-            cmds.setAttr(f"{proxy}.{axis}", l=True)
+            cmds.setAttr(f"{proxy}.{axis}", lock = True)
 
 def make_joints(proxies_list, rot_order, radius):
     cmds.select(clear = True)
@@ -49,7 +49,7 @@ def make_joints(proxies_list, rot_order, radius):
         joints_list.append(new_joint)
     return joints_list
 
-def mirror_ctrls(upChain_ctrls, module, ctrl_parent):
+def mirror_ctrls(upChain_ctrls, ctrl_parent):
     """upChain_ctrl = list of first-of-chain or world space ctrls.
     Mirror IK and FK separately since they have different parents
     e.g. only shoulderFK, without elbowFK or handFK
@@ -69,11 +69,12 @@ def mirror_ctrls(upChain_ctrls, module, ctrl_parent):
                     cmds.setAttr(f"{s}.overrideColor", 13)
                 elif cmds.getAttr(f"{s}.overrideColor") == 18:
                     cmds.setAttr(f"{s}.overrideColor", 20)
-    r_ctrls = [x.replace("L_", "R_") for x in upChain_ctrls]
-    mirror_grp = cmds.group(n = f"{module}_mirror_GRP", empty = True)
-    cmds.parent(r_ctrls, mirror_grp)
+    r_upChain_ctrls = [x.replace("L_", "R_") for x in upChain_ctrls]
+    mirror_grp = cmds.group(n = "mirror_GRP", empty = True, parent = ctrl_parent)
+    cmds.parent(r_upChain_ctrls, mirror_grp)
     cmds.setAttr(f"{mirror_grp}.sx", -1)
-    cmds.parent(mirror_grp, ctrl_parent)
+    cmds.parent(r_upChain_ctrls, ctrl_parent)
+    cmds.delete(mirror_grp)
     return mirror_grp
             
 def sub_ctrl_vis(sub_ctrl):
@@ -92,6 +93,8 @@ def sub_ctrl_vis(sub_ctrl):
 def ikfk_chains(joint_list, switcher_ctrl):
     """ joint_list must be in order of parent to child hierarchy, top to bottom
     new chains are siblings of original chain
+    rotateOrder connected from FK -> main -> IK 
+    (rO will be driven by FK ctrls, doesn't matter on IK, but needs to match)
     """
     cmds.addAttr(
         switcher_ctrl, longName = "ikfk", 
@@ -137,6 +140,9 @@ def ikfk_chains(joint_list, switcher_ctrl):
         cmds.connectAttr(f"{fk_jnt}.scale", f"{s_blend}.color2")
         cmds.connectAttr(f"{switcher_ctrl}.ikfk", f"{s_blend}.blender")
         cmds.connectAttr(f"{s_blend}.output", f"{orig_jnt}.scale")
+        # rotateOrders
+        cmds.connectAttr(f"{fk_jnt}.rotateOrder", f"{orig_jnt}.rotateOrder")
+        cmds.connectAttr(f"{orig_jnt}.rotateOrder", f"{ik_jnt}.rotateOrder")
     
     
 

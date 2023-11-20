@@ -36,7 +36,7 @@ class ProxyLeg(object):
                 [side, knee_h, 4], "cube", 3, "green", 
                 ["tx", "r", "sx", "sz"]),
             "L_legpv_PRX" : (
-                [side, knee_h, 65], "arrow", 4, "green", 
+                [side, knee_h, 80], "octahedron", 2.5, "green", 
                 ["t", "r", "s"]),
         }
         proxies = list(self.proxy_dict)
@@ -45,6 +45,12 @@ class ProxyLeg(object):
         self.lowleg = proxies[2]
         self.foot = proxies[3]
         self.toes = proxies[4]
+        self.polev = proxies[7]
+        # IK foot roll pivots
+        self.toespiv = "L_toespivot_PRX"
+        self.heelpiv = "L_heelpivot_PRX"
+        self.inpiv = "L_inpivot_PRX"
+        self.outpiv = "L_outpivot_PRX"
 
     def build_proxy(self, proxy_socket):
         proxies = rig.make_proxies(self.proxy_dict, proxy_socket, self.module_name)
@@ -69,8 +75,26 @@ class ProxyLeg(object):
                 self.module_name, (upleg, knee, lowleg, foot, toes, toes_end))
         line2 = Nurbs.lineconnect(f"{self.module_name}_pv", (knee_master, polev))
         cmds.parent((line1, line2), f"{self.module_name}_proxy_GRP")
+        
+        # IK foot roll pivots
+        locs = [self.toespiv, self.heelpiv, self.inpiv, self.outpiv]
+        for loc in locs:
+            cmds.spaceLocator(n = loc)
+            cmds.matchTransform(loc, self.foot, px = True, pz = True)
+        cmds.move(0, 0, 24, self.toespiv, relative = True)
+        cmds.move(0, 0, -6, self.heelpiv, relative = True)
+        cmds.move(-7, 0, 10, self.inpiv, relative = True)
+        cmds.move(7, 0, 10, self.outpiv, relative = True)
+        loc_grp = cmds.group(locs, n = "L_footrolls_GRP")
+        for loc in locs:
+            cmds.setAttr(f"{loc}.localScale", 2, 2, 2)
+            for attr in ["tz", "r", "s"]:
+                cmds.setAttr(f"{loc}.{attr}", lock = True)
+        cmds.pointConstraint(self.foot, loc_grp, mo = True, skip = "y", weight = 1)
+        prox_grp = cmds.listRelatives(self.upleg, parent = True)[0]
+        cmds.parent(loc_grp, prox_grp)
                         
-        rig.proxy_lock(self.proxy_dict)    
+        rig.proxy_lock(self.proxy_dict)
 
 if __name__ == "__main__":
     

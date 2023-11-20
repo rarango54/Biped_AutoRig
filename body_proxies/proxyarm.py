@@ -19,7 +19,7 @@ class ProxyArm(object):
             "L_uparm_PRX" : (
                 [17, height, 0], "cube", 3, "green", 
                 ["rx","s"]),
-            "L_elbow_PRX" : (
+            "L_lowarm_PRX" : (
                 [46, height, -5], "sphere", 1.5, "grass", 
                 ["ty","r","s"]),
             "L_hand_PRX" : (
@@ -29,7 +29,7 @@ class ProxyArm(object):
                 [85, height, 0], "sphere", 1.3, "grass", 
                 ["ty","r","s"]),
             "L_polevector_PRX" : (
-                [45, height, -65], "arrow", 4, "green", 
+                [45, height, -65], "octahedron", 2.5, "green", 
                 ["t","r","s"]),
         }
 
@@ -39,7 +39,7 @@ class ProxyArm(object):
 
         clav = proxies[0]
         uparm = proxies[1]
-        elbow = proxies[2]
+        lowarm = proxies[2]
         hand = proxies[3]
         hand_end = proxies[4]
         polev = proxies[5]
@@ -50,19 +50,19 @@ class ProxyArm(object):
                 continue
             cmds.rotate(0,90,0, i)
         
-        elbow_buff = util.buffer_grp(elbow)
-        cmds.parent(polev, elbow_buff)
-        cmds.connectAttr(f"{elbow}.tx", f"{polev}.tx")
+        lowarm_buff = util.buffer(lowarm)
+        cmds.parent(polev, lowarm_buff)
+        cmds.connectAttr(f"{lowarm}.tx", f"{polev}.tx")
         
-        cmds.pointConstraint((hand, uparm), elbow_buff, mo=True,
-                n=elbow_buff.replace("GRP", "POINT"))
+        cmds.pointConstraint((hand, uparm), lowarm_buff, mo=True,
+                n=lowarm_buff.replace("GRP", "POINT"))
         cmds.parent(hand_end, hand)
-        cmds.parent([hand, elbow_buff], uparm)
+        cmds.parent([hand, lowarm_buff], uparm)
         
         # line
         line1 = Nurbs.lineconnect(
-                self.module_name, (clav, uparm, elbow, hand, hand_end))
-        line2 = Nurbs.lineconnect(f"{self.module_name}_pv", (elbow, polev))
+                self.module_name, (clav, uparm, lowarm, hand, hand_end))
+        line2 = Nurbs.lineconnect(f"{self.module_name}_pv", (lowarm, polev))
         cmds.parent((line1, line2), f"{self.module_name}_proxy_GRP")
                         
         rig.proxy_lock(self.proxy_dict)    

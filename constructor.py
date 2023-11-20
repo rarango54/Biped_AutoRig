@@ -14,22 +14,12 @@ from body_modules.neck import Neck
 from body_modules.arm import Arms
 from body_modules.leg import Legs
 
-
-import contextlib
-@contextlib.contextmanager
-def undoable():
-    '''Insert undo chunk'''
-    try:
-        cmds.undoInfo(openChunk=True)
-        yield
-    finally:
-        cmds.undoInfo(closeChunk=True)
-
 class BaseRig(object):
     
-    def __init__(self, char_name):
+    def __init__(self):
         
-        self.char_name = char_name
+        # self.char_name = char_name
+        return
 
 
     def construct_proxy(self):
@@ -48,7 +38,7 @@ class BaseRig(object):
     
     def construct_rig(self):
         # module = Module()
-        base = Base(self.char_name)
+        base = Base()
         spine = Spine()
         neck = Neck()
         arms = Arms()
@@ -66,19 +56,17 @@ class BaseRig(object):
                 joint_socket = base.root_jnt, 
                 ctrl_socket = base.global_sub_ctrl, 
                 spaces = [None])
-        neck.build_rig(
-                joint_socket = spine.chest_up_jnt, 
-                ctrl_socket = spine.chest_up_ctrl, 
-                spaces = [None])
+        # neck.build_rig(
+        #         joint_socket = spine.chest_up_jnt, 
+        #         ctrl_socket = spine.chest_up_ctrl, 
+        #         spaces = [None])
         arms.build_rig(
                 joint_socket = spine.chest_up_jnt, 
                 ctrl_socket = spine.chest_up_ctrl, 
-                ik_ctrlparent = base.global_sub_ctrl, 
                 spaces = [None])
         legs.build_rig(
                 joint_socket = spine.hip_jnt, 
-                ctrl_socket = spine.hip_sub_ctrl, 
-                ik_ctrlparent = base.global_sub_ctrl, 
+                ctrl_socket = spine.hip_ctrl, 
                 spaces = [None])
         
         base = ProxySpine()    
@@ -87,7 +75,7 @@ class BaseRig(object):
 def test_build(rig = True, bindSkin = True):
     cmds.file(newFile = True, force = True)
     cmds.modelEditor("modelPanel4", e = True, jointXray = True)
-    path = cmds.workspace( q=True, rootDirectory=True )
+    path = cmds.workspace(q = True, rootDirectory = True )
     fbxpath = path + "assets/skinningDummy.fbx"
     dummy = cmds.file(
             fbxpath,
@@ -99,18 +87,18 @@ def test_build(rig = True, bindSkin = True):
     layer = cmds.createDisplayLayer(name = "skinDummy", number = 1, noRecurse = True)
     cmds.setAttr(f"{layer}.displayType", 2)
     # create proxies
-    Apollo = BaseRig("Apollo")
-    Apollo.construct_proxy()
+    character = BaseRig()
+    character.construct_proxy()
     if rig == False:
         return
     # create rig
-    Apollo.construct_rig()
+    character.construct_rig()
     if bindSkin == False:
         return
-    bind_joints = cmds.sets("bind_joints", q = True)
+    body_joints = cmds.sets("bind_joints", q = True)
     cmds.select(clear = True)
     cmds.skinCluster(
-            bind_joints,
+            body_joints,
             dummy,
             name = "test_SKIN",
             toSelectedBones = True,

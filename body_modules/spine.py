@@ -69,7 +69,7 @@ class Spine(object):
         for ctrl in list(relations):
             cmds.matchTransform(ctrl, relations[ctrl][0], pos=True)
             cmds.parent(ctrl, relations[ctrl][1])
-        util.zero_transforms(list(relations))
+        util.mtx_zero(list(relations))
         
         # separators?
         rig.sub_ctrl_vis(self.body_sub_ctrl)
@@ -83,11 +83,13 @@ class Spine(object):
         self.skeleton(joint_socket)
         self.controls(ctrl_socket)
         
-        waist_buff = util.buffer_grp(self.waist_ctrl)
+        ### connect rotateOrder from ctrls to driver jnts
+        
+        waist_buff = util.buffer(self.waist_ctrl)
         cmds.orientConstraint(
             [self.chest_sub_ctrl, self.hip_ctrl], waist_buff,
             o=(0,0,0), sk=("x", "z"), w=1)
-        util.zero_transforms(self.waist_ctrl)
+        util.mtx_zero(self.waist_ctrl)
         
         connections = {
             self.hip_ctrl : self.hip_jnt,
@@ -98,8 +100,8 @@ class Spine(object):
         
         for ctrl in list(connections):
             jnt = connections[ctrl]
-            cmds.parentConstraint(ctrl, jnt, w=1)
-            cmds.scaleConstraint(ctrl, jnt, o=(1,1,1), w=1)
+            cmds.parentConstraint(ctrl, jnt, weight = 1)
+            cmds.scaleConstraint(ctrl, jnt, offset = (1,1,1), weight = 1)
 
 
 

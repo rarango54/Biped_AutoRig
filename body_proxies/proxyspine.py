@@ -62,14 +62,14 @@ class ProxySpine(object):
         end = spine[-1]
         for nr, i in enumerate(spine[4:-1]):
             cmds.parent(i, hip)
-            buff = util.buffer_grp(i, "buffer_prx_GRP")
+            buff = util.buffer(i, "buffer_prx_GRP")
             pc = cmds.pointConstraint((end, hip), buff, 
                 n=i.replace("PRX", "POINT"))[0]
             w0 = (nr+1)/3
             w1 = 1-w0
             cmds.setAttr(f"{pc}.{end}W0", w0)
             cmds.setAttr(f"{pc}.{hip}W1", w1)
-        cmds.parent((hip, end), spine[0])
+        cmds.parent((hip, end), spine[2])
         
         line1 = Nurbs.lineconnect(
                 self.module_name, (hip, waist, chest, chest_up, end))

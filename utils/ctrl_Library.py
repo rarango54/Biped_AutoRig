@@ -120,6 +120,31 @@ class Nurbs(object):
             ])
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
+
+    @classmethod
+    def lollipop(cls, name, radius, color='sky', rotOrder='xyz'):
+        d = radius
+        w = radius / 6
+        ctrl = cmds.curve(n=name, d=2,p=[
+            (0,d,0),(0,d,0),
+            (0,d,-w),(0,d+w,-w),(0,d+2*w,-w),(0,d+2*w,0),(0,d+2*w,w),(0,d+w,w),(0,d,w),
+            (0,d,0),(0,d,0),(0,0,0)])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
+    def double_lolli(cls, name, radius, color='sky', rotOrder='xyz'):
+        d = radius
+        w = radius / 6
+        ctrl = cmds.curve(n=name, d=2,p=[
+            (0,d,0),(0,d,0),
+            (0,d,-w),(0,d+w,-w),(0,d+2*w,-w),(0,d+2*w,0),(0,d+2*w,w),(0,d+w,w),(0,d,w),
+            (0,d,0),(0,d,0),
+            (0,-d,0),(0,-d,0),
+            (0,-d,-w),(0,-d-w,-w),(0,-d-2*w,-w),(0,-d-2*w,0),(0,-d-2*w,w),(0,-d-w,w),(0,-d,w),
+            (0,-d,0),(0,-d,0)])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
     
     @classmethod
     def metacarpal(cls, name, size, color='blue', rotOrder='zyx'):
@@ -222,7 +247,7 @@ class Nurbs(object):
     # bendy
 
     @classmethod
-    def flip_shape(cls, ctrl, orient='z', scale=(1,1,1)):
+    def flip_shape(cls, ctrl, orient = 'z', scale = (1,1,1)):
         """ choose orientation of ctrl's shape & then invert it on any axis """
         orients = {
             'x'  :   [f'{ctrl}.rotateY', 90],
@@ -272,5 +297,5 @@ class Nurbs(object):
 
 if __name__ == "__main__":
     
-    Nurbs.switcher("test", 2, "green")
+    Nurbs.bendy("test", 2, "green")
     pass
