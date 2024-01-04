@@ -43,6 +43,8 @@ def setup(mod_name,
     cmds.sets(bendy_joints, add = "joints")
     cmds.parent(bendy_joints[0], base_driver)
     
+    curve = crv(mod_name+"_ikSpline_CRV", bendy_joints, 3)
+    
     ikspline(
             mod_name = mod_name, 
             start_jnt = bendy_joints[0],  
@@ -51,9 +53,18 @@ def setup(mod_name,
             upaxis = upaxis,
             base_driver = base_driver, 
             head_driver = head_driver,
-            mid_ctrl = mid_ctrl, 
+            mid_ctrl = mid_ctrl,
+            curve = curve, 
             twistInvDriver = twistInvDriver,
             elbow_bendy_ctrl = elbow_bendy_ctrl)
+    # middle needs to drive 3 center curve cvs
+    skin = f"{mod_name}_ikSpline_SKIN"
+    cmds.skinPercent(skin, f"{curve}.cv[1]", 
+                     transformValue = (f"{mod_name}_bendy_2_JNT", 1))
+    cmds.skinPercent(skin, f"{curve}.cv[2]", 
+                     transformValue = (f"{mod_name}_bendy_2_JNT", 1))
+    cmds.skinPercent(skin, f"{curve}.cv[3]", 
+                     transformValue = (f"{mod_name}_bendy_2_JNT", 1))
     return
 
 def jointchain(mod_name, number, start_obj, end_obj, radius, rotord, orient):
@@ -107,7 +118,7 @@ def twist_setup(mod_name,
     return -> group with [twist_jnt, ikh] in misc, outside jnt or ctrl hierarchy
     """
     rotord = cmds.joint(start_jnt, q = True, roo = True)
-    radius = cmds.joint(start_jnt, q = True, radius = True)[0] * 1.5
+    radius = cmds.joint(start_jnt, q = True, radius = True)[0] * 3
     start_pos = cmds.xform(start_jnt, q = True, rotatePivot = True, worldSpace = True)
     end_pos = cmds.xform(end_jnt, q = True, rotatePivot = True, worldSpace = True)
     # make main twist joint
@@ -122,7 +133,9 @@ def twist_setup(mod_name,
     # match orientation to first joint in chain
     cmds.matchTransform(twist_joint, start_jnt, rotation = True)
     cmds.makeIdentity(twist_joint, apply = True, rotate = True)
-    # twist reversal
+    # pointConstraint drivers:
+    pcdrivers = [head_driver, base_driver]
+    # twist reversal condition
     if twistInvDriver:
         twist_tip = start_pos
         head_driver = twistInvDriver
@@ -131,7 +144,7 @@ def twist_setup(mod_name,
     # end joint
     twist_end_jnt = cmds.joint(
             n = f"{mod_name}_twist_end_JNT", position = twist_tip, 
-            rotationOrder = rotord, radius = radius/4)
+            rotationOrder = rotord, radius = radius/6)
     cmds.setAttr(f"{twist_end_jnt}.r", 0,0,0)
     # single chain ik handle
     twist_ikh = cmds.ikHandle(
@@ -141,17 +154,22 @@ def twist_setup(mod_name,
             endEffector = twist_end_jnt,
             n = f"{mod_name}_twist_IKH")
     cmds.rename(twist_ikh[1], f"{mod_name}_twist_EFF")
-    necktwist_grp = cmds.group(n = f"{mod_name}_twist_GRP", em = True)
-    cmds.parent((twist_ikh[0], twist_joint), necktwist_grp)
+    twist_grp = cmds.group(n = f"{mod_name}_twist_GRP", em = True)
+    cmds.parent((twist_ikh[0], twist_joint), twist_grp)
+    # connect to rig
     util.mtx_hook(head_driver, twist_ikh[0])
-    util.mtx_hook(base_driver, twist_joint)
-    return necktwist_grp
+    # twist_jnt orient driven by IKH, scaleConstr causes double transform
+    # mtx_hook not compatible with Rumba
+    cmds.pointConstraint(pcdrivers, twist_joint, offset = (0,0,0), weight = 1)
+    cmds.connectAttr(base_driver+".s", twist_joint+".s")
+    return twist_grp
 
 def ikspline(mod_name, 
              start_jnt, end_jnt, 
              forwardaxis, upaxis,
              base_driver, head_driver,
              mid_ctrl,
+             curve,
              twistInvDriver = None,
              elbow_bendy_ctrl = None):
     """
@@ -222,13 +240,16 @@ def ikspline(mod_name,
     ikSet = cmds.ikHandle(
             solver = "ikSplineSolver", 
             n = f"{mod_name}_IKS",
-            simplifyCurve = True,
+            simplifyCurve = False,
             numSpans = 2, 
             startJoint = start_jnt, 
-            endEffector = end_jnt)
-    # ikSet = [ikHandle1, effector1, curve1]
+            endEffector = end_jnt,
+            createCurve = False,
+            curve = curve,
+            parentCurve = False)
+# ikSet = [ikHandle1, effector1, curve1]
     ikh = ikSet[0]
-    curve = cmds.rename(ikSet[2], f"{mod_name}_ikSpline_CRV")
+# curve = cmds.rename(ikSet[2], f"{mod_name}_ikSpline_CRV")
     effector = cmds.rename(ikSet[1], f"{mod_name}_ikSpline_EFF")
     cmds.parent((ikh, curve), grp)
     # advanced twist controls
@@ -238,7 +259,7 @@ def ikspline(mod_name,
     cmds.setAttr(f"{ikh}.dWorldUpAxis", upx)
     cmds.connectAttr(f"{twistloc1}.worldMatrix[0]", f"{ikh}.dWorldUpMatrix")
     cmds.connectAttr(f"{twistloc2}.worldMatrix[0]", f"{ikh}.dWorldUpMatrixEnd")
-    # make it stretchy!!
+# make it stretchy!!
     # normalized = current length / original length
     length = cmds.shadingNode(
         "curveInfo", asUtility = True, n = f"{mod_name}_ikSplineLength_CI")
@@ -286,28 +307,20 @@ def ikspline(mod_name,
             skinMethod = 0,
             normalizeWeights = 1,
             maximumInfluences = 1)[0]
-    # middle needs to drive 3 center curve cvs
-    cmds.skinPercent(skin, f"{curve}.cv[1]", transformValue = (joint_list[1], 1))
-    cmds.skinPercent(skin, f"{curve}.cv[2]", transformValue = (joint_list[1], 1))
-    cmds.skinPercent(skin, f"{curve}.cv[3]", transformValue = (joint_list[1], 1))
     # connect driver joints to resp. ctrl
     if elbow_bendy_ctrl and twistInvDriver:
         head_driver = elbow_bendy_ctrl
     if elbow_bendy_ctrl and twistInvDriver == None:
         base_driver = elbow_bendy_ctrl
     for n, ctrl in enumerate([base_driver, mid_ctrl, head_driver]):
-        # cmds.parentConstraint(ctrl, joint_list[n], mo = True, weight = 1)
-        # cmds.scaleConstraint(ctrl, joint_list[n], mo = True, weight = 1)
-        util.mtx_hook(ctrl, joint_list[n])
+        cmds.parentConstraint(ctrl, joint_list[n], mo = True, weight = 1)
+        cmds.scaleConstraint(ctrl, joint_list[n], mo = True, weight = 1)
+        # util.mtx_hook(ctrl, joint_list[n])
         
     # hide bendy components for ease of weight painting etc
     # cmds.hide(grp)
     
     ###### missing:
-        # create curve at exact joint locations instead of letting maya auto create it
-        # create curve as part of the joint chain script? 
-        # should work with start joint -> listRelatives(ch = True)
-        
         # return empty group node with attributes (tuning node?) 
         # (thickness, auto-volume, base/mid/end-twists, length)
         # then connect ctrl attrs to that
@@ -403,6 +416,16 @@ def aim(bendy, aimtarget, uptarget, root, vaim, vup, scldriver = None):
         cmds.connectAttr(f"{root}.sy", f"{glob}.input1Y")
     cmds.connectAttr("global_CTRL.scale", f"{glob}.input2")
     cmds.connectAttr(f"{glob}.output", f"{bendy_buff}.scale")
+
+def crv(name, points, degree):
+    coords = []
+    for p in points:
+        pos = cmds.xform(p, q = True, translation = True, worldSpace = True)
+        coords.append(pos)
+    curve = cmds.curve(n = name, d = degree, point = coords)
+    shape = cmds.listRelatives(curve, children = True, shapes = True)[0]
+    cmds.rename(shape, name + "Shape")
+    return curve
 
 if __name__ == "__main__":
     

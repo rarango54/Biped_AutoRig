@@ -13,10 +13,10 @@ class ProxyNeck(object):
         self.module_name = "neck"
         self.proxy_dict = {
             "neck_PRX" : (
-                [0, 145, 0], "sphere", 1.5, "yellow", 
+                [0, 150, 0], "sphere", 1.5, "yellow", 
                 ["tx","ry","rz","s"]),
             "head_PRX" : (
-                [0, 167, 5], "cube", 3, "red", 
+                [0, 167, 5], "sphere", 1.5, "red", 
                 ["tx","r","s"]),
             "head_end_PRX" : (
                 [0, 183, 5], "octahedron", 1, "pink", 

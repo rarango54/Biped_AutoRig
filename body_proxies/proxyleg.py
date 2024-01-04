@@ -15,28 +15,28 @@ class ProxyLeg(object):
         knee_h = 50
         self.proxy_dict = {
             "L_upleg_PRX" : (
-                [side, 95, 0], "cube", 3, "green", 
+                [side, 95, 0], "sphere", 1.5, "green", 
                 ["r", "s"]),
             "L_knee_PRX" : (
-                [side, knee_h+5, 4], "sphere", 1.5, "grass", 
+                [side, knee_h+5, 4], "sphere", 0.75, "grass", 
                 ["t", "r", "s"]),
             "L_lowleg_PRX" : (
-                [side, knee_h-5, 4], "sphere", 1.5, "grass", 
+                [side, knee_h-5, 4], "sphere", 0.75, "grass", 
                 ["tx", "r", "s"]),
             "L_foot_PRX" : (
-                [side, 7, 0], "cube", 3, "green", 
-                ["tx", "tz", "r", "s"]),
+                [side, 7, 0], "sphere", 1.5, "green", 
+                ["tx", "r", "s"]),
             "L_toes_PRX" : (
-                [side, 1, 13], "octahedron", 1.5, "green", 
+                [side, 1, 13], "sphere", 1, "green", 
                 ["tx", "r", "s"]),
             "L_toes_end_PRX" : (
-                [side, 1, 21], "sphere", 1.3, "grass", 
+                [side, 1, 21], "octahedron", 0.75, "grass", 
                 ["tx", "ty", "r", "s"]),
             "L_knee_master_PRX" : (
-                [side, knee_h, 4], "cube", 3, "green", 
+                [side, knee_h, 4], "cube", 2, "green", 
                 ["tx", "r", "sx", "sz"]),
             "L_legpv_PRX" : (
-                [side, knee_h, 80], "octahedron", 2.5, "green", 
+                [side, knee_h, 80], "octahedron", 2, "green", 
                 ["t", "r", "s"]),
         }
         proxies = list(self.proxy_dict)
@@ -88,7 +88,7 @@ class ProxyLeg(object):
         loc_grp = cmds.group(locs, n = "L_footrolls_GRP")
         for loc in locs:
             cmds.setAttr(f"{loc}.localScale", 2, 2, 2)
-            for attr in ["tz", "r", "s"]:
+            for attr in ["ty", "r", "s"]:
                 cmds.setAttr(f"{loc}.{attr}", lock = True)
         cmds.pointConstraint(self.foot, loc_grp, mo = True, skip = "y", weight = 1)
         prox_grp = cmds.listRelatives(self.upleg, parent = True)[0]

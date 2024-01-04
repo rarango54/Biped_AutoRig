@@ -18,7 +18,6 @@ class Neck(object):
         self.neck_jnt = "neck_JNT"
         self.head_end_jnt = "head_end_JNT"
         
-        # 5 joints in a straight line
         self.neck_1_jnt = "neck_1_JNT"
         self.neck_2_jnt = "neck_2_JNT"
         self.neck_3_jnt = "neck_3_JNT"
@@ -27,11 +26,11 @@ class Neck(object):
         
         self.twist_jnt = "neck_twist_JNT"
                 
-        self.neck_ctrl = "neck_CTRL"
-        self.neck_sub_ctrl = "neck_sub_CTRL"
-        self.neck_bendy_ctrl = "neck_bendy_CTRL"
-        self.head_ctrl = "head_CTRL"
-        self.head_sub_ctrl = "head_sub_CTRL"
+        self.neck = "neck_CTRL"
+        self.neck_sub = "neck_sub_CTRL"
+        self.neck_b = "neck_bendy_CTRL"
+        self.head = "head_CTRL"
+        self.head_sub = "head_sub_CTRL"
         
     
         
@@ -52,62 +51,139 @@ class Neck(object):
         cmds.sets(self.head_jnt, add = "bind_joints")
         
         # temp jaw for better skinning during testing
-        cmds.select(self.head_jnt)
-        mandible = cmds.joint(n = "mandible_JNT", position = (0, 166, 8))
-        chin = cmds.joint(n = "chin_JNT", position = (0, 164, 14))
-        cmds.sets((mandible, chin), add = "bind_joints")
+        # cmds.select(self.head_jnt)
+        # mandible = cmds.joint(n = "mandible_JNT", position = (0, 166, 8))
+        # chin = cmds.joint(n = "chin_JNT", position = (0, 164, 14))
+        # cmds.sets((mandible, chin), add = "bind_joints")
 
-    def controls(self, ctrl_socket):
-        nsize = util.get_distance(self.neck_jnt, self.head_jnt)
-        hsize = util.get_distance(self.head_jnt, self.head_end_jnt)
-        # ctrl shapes
-        neck = Nurbs.swoop_circle(self.neck_ctrl, nsize/3)
-        neck_sub = Nurbs.swoop_circle(self.neck_sub_ctrl, nsize/3.5, "orange")
-        head = Nurbs.box(self.head_ctrl, hsize, hsize*1.5, hsize,
-        "yellow", "xzy")
-        head_sub = Nurbs.box(self.head_sub_ctrl, hsize/2.2, hsize/1.1, hsize/2.2,
-        "orange", "xzy")
+##### CONTROLS #####################################################################
+    def controls(self, ctrl_socket, spaces):
+        nsize = util.distance(self.neck_jnt, self.head_jnt)
+        hsize = util.distance(self.head_jnt, self.head_end_jnt)
+    # ctrl shapes
+        neck = Nurbs.swoop_circle(self.neck, nsize/2)
+        neck_sub = Nurbs.swoop_circle(self.neck_sub, nsize/2.5, "orange")
+        head = Nurbs.box(self.head, hsize, hsize*1.5, hsize,"yellow", "xzy")
+        head_sub = Nurbs.box(self.head_sub, hsize/2.2, hsize/1.1, hsize/2.2, "orange", "xzy")
         
+    # expose rotateOrder
+        cmds.setAttr(f"{head}.rotateOrder", channelBox = True)
+            
+    # position & parent
         relations = {
             neck :      (self.neck_jnt, ctrl_socket),
             neck_sub :  (self.neck_jnt, neck),
-            head :      (self.head_jnt, ctrl_socket),
-            head_sub :  (self.head_jnt, head)
-        }
+            head :      (self.head_jnt, neck_sub),
+            head_sub :  (self.head_jnt, head)}
         
         for ctrl in list(relations):
             cmds.matchTransform(ctrl, relations[ctrl][0], pos = True, rot = True)
             cmds.parent(ctrl, relations[ctrl][1])
-        util.mtx_zero(list(relations))
-        util.attr_separator([self.neck_ctrl, self.head_ctrl])
-        rig.sub_ctrl_vis(self.neck_sub_ctrl)
-        rig.sub_ctrl_vis(self.head_sub_ctrl)
-        
-        necklen = util.get_distance(self.neck_jnt, self.head_jnt)
-        bendy = Nurbs.lollipop(self.neck_bendy_ctrl, necklen/3, "yellow")
+    # mid neck bendy ctrl
+        necklen = util.distance(self.neck_jnt, self.head_jnt)
+        bendy = Nurbs.lollipop(self.neck_b, necklen/3, "yellow")
         Nurbs.flip_shape(bendy, "y")
         cmds.matchTransform(bendy, neck)
         pointc = cmds.pointConstraint(
                 (neck, head), bendy, offset = (0,0,0), weight = 0.5)
         cmds.delete(pointc)
         cmds.parent(bendy, ctrl_socket)
-        util.mtx_hook(self.neck_jnt, bendy)
         
+####### Attributes
+        util.attr_separator([self.neck, self.head])
+        rig.sub_ctrl_vis(self.neck_sub)
+        rig.sub_ctrl_vis(self.head_sub)
+    ### Spaces
+        rig.spaces(spaces, head, r_only = True)
+    # selection sets
         cmds.sets(neck, neck_sub, bendy, head, head_sub,
                   add = "neck_head")
-
+    # cleanup
+        util.mtx_zero(list(relations))
+        
+###### RIGGING ####################################################################
     def build_rig(self, joint_socket, ctrl_socket, spaces):
         self.skeleton(joint_socket)
-        self.controls(ctrl_socket)
+        self.controls(ctrl_socket, spaces)
+        head_space = cmds.listRelatives(self.head, parent = True)[0]
+        comp = rig.fk_sclinvert(head_space)
+        # rewire scale inversion to neck_ctrl (neck_sub_ctrl scale will be locked)
+        cmds.connectAttr(f"{self.neck}.s", f"{comp}.inputScale", force = True)
+        
+        # connect rotateOrders from ctrls to joints
+        ro_ctrls = [self.neck, self.head]
+        for ro_ctrl in ro_ctrls:
+            jnt = ro_ctrl.replace("_CTRL", "_JNT")
+            cmds.connectAttr(f"{ro_ctrl}.rotateOrder", f"{jnt}.rotateOrder")
         
         # connections = {
-        #     self.neck_sub_ctrl : self.neck_jnt,
-        #     self.head_sub_ctrl : self.head_jnt
-        # }
+        #     self.neck_sub : self.neck_jnt,
+        #     self.head_sub : self.head_jnt}
         # for ctrl in list(connections):
         #     jnt = connections[ctrl]
         #     cmds.parentConstraint(ctrl, jnt, weight = 1)
         #     cmds.scaleConstraint(ctrl, jnt, offset = (1,1,1), weight = 1)
+        # cmds.pointConstraint(
+        #         self.head_sub, self.head_jnt, offset = (0,0,0), weight = 1)
+        cmds.orientConstraint(
+                self.head_sub, self.head_jnt, offset = (0,0,0), weight = 1)
+        cmds.scaleConstraint(
+                self.head_sub, self.head_jnt, offset = (1,1,1), weight = 1)
+        
+        cmds.aimConstraint(self.head_sub, self.neck_jnt, aim = (0,1,0), 
+                           upVector = (0,0,1), worldUpObject = ctrl_socket, 
+                           worldUpType = "objectrotation", worldUpVector = (0,0,1),
+                           weight = 1)
+        
+    # stretchy scale based on distance
+        length = cmds.shadingNode(
+            "distanceBetween", asUtility = True, n = "neck_length_DBTW")
+        cmds.connectAttr(f"{self.head_sub}.worldMatrix[0]", f"{length}.inMatrix1")
+        cmds.connectAttr(f"{self.neck_sub}.worldMatrix[0]", f"{length}.inMatrix2")
+        orig_length = cmds.getAttr(f"{length}.distance")
+        norm = cmds.shadingNode(
+            "multiplyDivide", asUtility = True, n = "neck_length_NORM")
+        cmds.setAttr(f"{norm}.operation", 2) # divide
+        cmds.setAttr(f"{norm}.input1", 1,1,1)
+        cmds.connectAttr(f"{length}.distance", f"{norm}.input1Y")
+        cmds.setAttr(f"{norm}.input2Y", orig_length)
+        
+    ### mult breathing into scaleY
+        # BODY_TUNING
+        util.attr_separator("BODY_TUNING", name = "Neck")
+        cmds.addAttr(
+            "BODY_TUNING", longName = "breath_headFollow",
+            attributeType = "double", defaultValue = 0.4, min = 0, max = 1)
+        cmds.setAttr("BODY_TUNING.breath_headFollow", e = True, channelBox = True)
+        # reverse the 0 to 1 range
+        rev = cmds.shadingNode("reverse", n = "neck_breathHeadFollow_REV", au = True)
+        cmds.connectAttr("BODY_TUNING.breath_headFollow", f"{rev}.inputY")
+        # MULT breath driver TY * Tuning attr
+        amult = cmds.shadingNode(
+                "multiplyDivide", n = "neck_breathHeadFollow_MULT", au = True)
+        cmds.connectAttr(f"{rev}.outputY", f"{amult}.input1Y")
+        cmds.connectAttr("chest_breath_DRIVE.ty", f"{amult}.input2Y")
+        # REMAP breathing ty to neck scale based on orig neck length
+        rmv = util.remap(
+                "neck_breathHeadFollow_RMAP", f"{amult}.outputY",
+                -orig_length, orig_length, 2, 0)
+        # cmds.connectAttr(f"{amult}.outputY", f"{rmv}.inputValue")
+        # MULT breath neck scale * stretch setup (norm)
+        bmult = cmds.shadingNode(
+                "multiplyDivide", n = "neck_breath_MULT", au = True)
+        cmds.connectAttr(f"{norm}.output", f"{bmult}.input1")
+        cmds.connectAttr(f"{rmv}.outValue", f"{bmult}.input2Y")
+    ### scale Y into neck_JNT
+        cmds.connectAttr(f"{bmult}.outputY", f"{self.neck_jnt}.scaleY")
+        
+    ### Thickness = globalScl * neck_ctrl (only sx, sz)
+        glob_mult = cmds.shadingNode(
+                "multiplyDivide", n = "neck_thickness_MULT", au = True)
+        cmds.connectAttr(f"{self.neck}.sx", f"{glob_mult}.input1X")
+        cmds.connectAttr(f"{self.neck}.sz", f"{glob_mult}.input1Z")
+        cmds.connectAttr("global_CTRL.s", f"{glob_mult}.input2")
+        cmds.connectAttr(f"{glob_mult}.outputX", f"{self.neck_jnt}.sx")
+        cmds.connectAttr(f"{glob_mult}.outputZ", f"{self.neck_jnt}.sz")
         
         bendy.setup(
                 mod_name = self.module_name, 
@@ -115,60 +191,18 @@ class Neck(object):
                 head_driver = self.head_jnt,
                 forwardaxis = "y", 
                 upaxis = "-z",
-                mid_ctrl = self.neck_bendy_ctrl)
-        
-        head_buff = util.buffer(self.head_ctrl)
-        cmds.parentConstraint(
-                self.neck_sub_ctrl, head_buff, mo = True, 
-                skipRotate = ("x", "y", "z"), weight = 1)
-        cmds.pointConstraint(
-                self.neck_sub_ctrl, self.neck_jnt, offset = (0,0,0), weight = 1)
-        # add orient constraint with rot spaces
-        neck_ikh = cmds.ikHandle(
-                self.neck_jnt,
-                solver = "ikSCsolver",
-                startJoint = self.neck_jnt,
-                endEffector = self.head_jnt,
-                n = f"{self.module_name}_IKH")
-        cmds.rename(neck_ikh[1], f"{self.module_name}_EFF")
-        head_ikh = cmds.ikHandle(
-                self.head_jnt,
-                solver = "ikSCsolver",
-                startJoint = self.head_jnt,
-                endEffector = self.head_end_jnt,
-                n = "head_IKH")
-        cmds.rename(neck_ikh[1], "head_EFF")
-        cmds.parent((neck_ikh[0], head_ikh[0]), "misc_GRP")
-        util.mtx_hook(self.head_ctrl, neck_ikh[0])
-        util.mtx_hook(self.head_ctrl, head_ikh[0])
-        cmds.parentConstraint(
-                self.neck_jnt, self.neck_bendy_ctrl, mo = True, weight = 1)
-        # stretch: distBetw(head & neck_sub) -> MD normalize -> neck_JNT scaleY
-        dist = cmds.shadingNode(
-                "distanceBetween", n = "neck_length_DBTW", asUtility = True)
-        cmds.connectAttr(f"{self.neck_sub_ctrl}.worldMatrix[0]", f"{dist}.inMatrix1")
-        cmds.connectAttr(f"{self.head_ctrl}.worldMatrix[0]", f"{dist}.inMatrix2")
-        orig_length = cmds.getAttr(f"{dist}.distance")
-        norm = cmds.shadingNode(
-                "multiplyDivide", n = "neck_lengthNormalise_MD", asUtility = True)
-        cmds.setAttr(f"{norm}.operation", 2)
-        cmds.connectAttr(f"{dist}.distance", f"{norm}.input1X")
-        cmds.setAttr(f"{norm}.input2X", orig_length)
-        cmds.connectAttr(f"{norm}.outputX", f"{self.neck_jnt}.scaleY")
-        #### IK FK hybrid not working yet, might need setup without single IKHandles?
-        #### currentlywhen IK posing the head,
-        #### -> neck scale Y is not shortening the length of the neck :(
-        # direct connect: head_ctrl scale * global_scl to head_jnt
-        globscl = cmds.shadingNode(
-                "multiplyDivide", n = "head_globalScl_MD", asUtility = True)
-        cmds.connectAttr("global_CTRL.scale", f"{globscl}.input1")
-        cmds.connectAttr(f"{self.head_ctrl}.scale", f"{globscl}.input2")
-        cmds.connectAttr(f"{globscl}.output", f"{self.head_jnt}.scale")
+                mid_ctrl = self.neck_b)
+        # attach bendy ctrl
+        util.mtx_hook(self.neck_jnt, self.neck_b)
         
         # head squetch? MD to maintain normal scale channels on ctrl
         # neck scl shouldn't affect head
         
         # mid twist from bendy_ctrl Ry possible?
+        
+    ### clean up attributes - lock & hide
+        util.lock([self.neck, self.neck_sub], ["tx","ty","tz"])
+        util.lock(self.neck_sub, ["sx","sy","sz"])
 
 
 

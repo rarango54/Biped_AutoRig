@@ -53,6 +53,15 @@ class Nurbs(object):
             )
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
+        
+    @classmethod
+    def triangle(cls, name, width, height, color="brown", rotOrder="xyz"):
+        w = width
+        h = height
+        ctrl = cmds.curve(n=name, d=1,p=[
+            (-w/2,-h/2,0), (0, h/2, 0), (w/2, -h/2, 0), (-w/2,-h/2,0)])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
 
     @classmethod
     def stack_circles(cls, name, radius, color='pink', rotOrder='zxy'):
@@ -86,6 +95,15 @@ class Nurbs(object):
         len=size/2
         ctrl = cmds.curve(n=name, d=1, p=[(-len,0,-len),(-len,0,len),
             (len,0,len),(len,0,-len),(-len,0,-len)]
+            )
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
+    def halfcircle(cls, name, size, color='brown', rotOrder='xyz'):
+        r = size/2
+        ctrl = cmds.curve(n=name, d=3, p=[(-r,0,0),(-r,r/2,0),(-r/2,r,0),
+            (r/2,r,0),(r,r/2,0),(r,0,0)]
             )
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
@@ -176,11 +194,12 @@ class Nurbs(object):
         len = size * 2.5
         wid = size * 0.5
         hei = size * 1.5
+        x = size * 2
         ctrl = cmds.curve(n=name, d=3,p=[
-            (0,-hei/2,0),(0,-hei/2,len),(0,-hei/2,len),(0,-hei/2,len),
-            (wid,-hei/4,len),(wid,hei/4,len),(0,hei/2,len),(0,hei/2,len),
-            (0,hei/2,len),(0,hei/2,0),(0,hei/2,0),(0,hei/2,0),
-            (wid,hei/4,0),(wid,-hei/4,0),(0,-hei/2,0)
+            (x,-hei/2,0),(x,-hei/2,len),(x,-hei/2,len),(x,-hei/2,len),
+            (x+wid,-hei/4,len),(x+wid,hei/4,len),(x,hei/2,len),(x,hei/2,len),
+            (x,hei/2,len),(x,hei/2,0),(x,hei/2,0),(x,hei/2,0),
+            (x+wid,hei/4,0),(x+wid,-hei/4,0),(x,-hei/2,0)
             ])
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
@@ -215,7 +234,19 @@ class Nurbs(object):
         return ctrl
     
     @classmethod
-    def lineconnect(cls, proxymodule, nodes):
+    def fly(cls, name, size, color='green', rotOrder='zxy'):
+        s = size
+        d = -size/1.3 # offset from back (z coords)
+        ctrl = cmds.curve(
+            n=name, d=2,p=[
+            (0,s/6,d*0.7),(s/4,s/1.3,d*0.8),(s/2,s/4,d),(s/2,-s/3,d),(s/4,-s,d*0.8),
+            (s/4,-s,d*0.8),(s/5,-s/4,d*0.8),(0,0,d*0.7),
+            (-s/5,-s/4,d*0.8),(-s/4,-s,d*0.8),(-s/4,-s,d*0.8),(-s/2,-s/3,d),(-s/2,s/4,d),
+            (-s/4,s/1.3,d*0.8),(0,s/6,d*0.7)])
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    @classmethod
+    def lineconnect(cls, name, nodes, proxy = True):
         objects = [nodes] if isinstance(nodes, str) else nodes
         positions = []
         args = {}
@@ -224,13 +255,13 @@ class Nurbs(object):
             positions.append(pos)
             args[f"p{n}"] = pos
         curve = eval(
-            f"cmds.curve(n = f'{proxymodule}_line_CRV', degree = 1, p = {positions})")
+            f"cmds.curve(n = f'{name}_line_CRV', degree = 1, p = {positions})")
         shape = cmds.rename(
                     cmds.listRelatives(curve, children = True, shapes = True),
                     f"{curve}Shape")
         for n, obj in enumerate(nodes):
             # connect objs through decomp_mtx to curve's control cvs
-            dmtx = cmds.createNode("decomposeMatrix", n = f"{proxymodule}_cv{n}_DM")
+            dmtx = cmds.createNode("decomposeMatrix", n = f"{name}_cv{n}_DM")
             cmds.connectAttr(f"{obj}.worldMatrix[0]", f"{dmtx}.inputMatrix")
             cmds.connectAttr(f"{dmtx}.outputTranslateX", 
                              f"{curve}Shape.controlPoints[{n}].xValue")
@@ -240,8 +271,13 @@ class Nurbs(object):
                              f"{curve}Shape.controlPoints[{n}].zValue")
         # drawingOverride settings
         cmds.setAttr(f'{shape}.overrideEnabled', 1)
-        cmds.setAttr(f"{shape}.overrideDisplayType", 2)
-        cmds.setAttr(f"{shape}.alwaysDrawOnTop", 1)
+        cmds.setAttr(curve + ".inheritsTransform", 0)
+        if proxy == True:
+            cmds.setAttr(f"{shape}.overrideDisplayType", 2)
+            cmds.setAttr(f"{shape}.alwaysDrawOnTop", 1)
+        else:
+            cmds.setAttr(f"{shape}.overrideDisplayType", 1)
+            cmds.setAttr(f"{shape}.alwaysDrawOnTop", 0)
         return curve
     # FK
     # bendy
@@ -272,12 +308,13 @@ class Nurbs(object):
             'yellow':   17,
             'brown' :   24,
             'blue'  :    6,
+            'purple':    9,
             'sky'   :   18,
             'red'   :   13,
             'pink'  :   20,
             'green' :   14,
             'grass' :   27,
-            'grey'  :   3,
+            'grey'  :    3,
             'white' :   16,}
         if color not in colors:
             color = 'green'
@@ -297,5 +334,5 @@ class Nurbs(object):
 
 if __name__ == "__main__":
     
-    Nurbs.bendy("test", 2, "green")
+    Nurbs.halfcircle("test", 50, "green")
     pass

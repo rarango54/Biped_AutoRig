@@ -7,14 +7,16 @@ from body_proxies.proxyspine import ProxySpine
 from body_proxies.proxyneck import ProxyNeck
 from body_proxies.proxyarm import ProxyArm
 from body_proxies.proxyleg import ProxyLeg
+from body_proxies.proxyhand import ProxyHand
 
 from body_modules.base import Base
 from body_modules.spine import Spine
 from body_modules.neck import Neck
 from body_modules.arm import Arms
 from body_modules.leg import Legs
+from body_modules.hand import Hands
 
-class BaseRig(object):
+class BodyRig(object):
     
     def __init__(self):
         
@@ -28,6 +30,7 @@ class BaseRig(object):
         pneck = ProxyNeck()
         parm = ProxyArm()
         pleg = ProxyLeg()
+        phand = ProxyHand()
         
         # pmodule.build_proxy(pspine.base_prx)
         pspine.build_base()
@@ -35,6 +38,26 @@ class BaseRig(object):
         pneck.build_proxy(pspine.base_prx)
         parm.build_proxy(pspine.base_prx)
         pleg.build_proxy(pspine.base_prx)
+        phand.build_proxy(parm.hand)
+        
+    def construct_skeleton(self):
+        base = Base()
+        spine = Spine()
+        neck = Neck()
+        arms = Arms()
+        legs = Legs()
+        hands = Hands()
+        
+        base.setup()
+        base.build_rig()
+        spine.skeleton(joint_socket = base.root_jnt)
+        neck.skeleton(joint_socket = spine.chest_up_jnt)
+        arms.skeleton(joint_socket = spine.chest_up_jnt)
+        legs.skeleton(joint_socket = spine.hip_jnt)
+        hands.skeleton(joint_socket = arms.hand_jnt)
+        
+        base = ProxySpine()
+        cmds.hide(base.base_prx)
     
     def construct_rig(self):
         # module = Module()
@@ -43,6 +66,7 @@ class BaseRig(object):
         neck = Neck()
         arms = Arms()
         legs = Legs()
+        hands = Hands()
         
         # build_rig(
                 # joint_socket,
@@ -54,25 +78,33 @@ class BaseRig(object):
         base.build_rig()
         spine.build_rig(
                 joint_socket = base.root_jnt, 
-                ctrl_socket = base.global_sub_ctrl, 
-                spaces = [None])
-        # neck.build_rig(
-        #         joint_socket = spine.chest_up_jnt, 
-        #         ctrl_socket = spine.chest_up_ctrl, 
-        #         spaces = [None])
+                ctrl_socket = base.global_sub, 
+                spaces = [spine.body_sub, base.global_sub])
+        neck.build_rig(
+                joint_socket = spine.chest_up_jnt, 
+                ctrl_socket = spine.chest_up_socket, 
+                spaces = [base.global_sub, spine.body_sub, spine.breath_drive])
         arms.build_rig(
                 joint_socket = spine.chest_up_jnt, 
-                ctrl_socket = spine.chest_up_ctrl, 
-                spaces = [None])
+                ctrl_socket = spine.chest_up_socket, 
+                spaces = [base.global_sub, spine.body_sub, spine.breath_drive,
+                          arms.shoulder_ik])
         legs.build_rig(
                 joint_socket = spine.hip_jnt, 
-                ctrl_socket = spine.hip_ctrl, 
-                spaces = [None])
+                ctrl_socket = spine.hip_sub, 
+                spaces = [base.global_sub, spine.body_sub, spine.hip_sub,
+                          legs.hipjoint_ik])
+        hands.build_rig(
+                joint_socket = arms.hand_jnt,
+                ctrl_socket = base.global_sub, 
+                spaces = None)
         
-        base = ProxySpine()    
+        base = ProxySpine()
         cmds.hide(base.base_prx)
+    # all components which don't deform the geo directly are in "misc_GRP"
+        cmds.hide("misc_GRP")
 
-def test_build(rig = True, bindSkin = True):
+def test_build(skeleton = False, rig = True, bindSkin = True):
     cmds.file(newFile = True, force = True)
     cmds.modelEditor("modelPanel4", e = True, jointXray = True)
     path = cmds.workspace(q = True, rootDirectory = True )
@@ -87,9 +119,11 @@ def test_build(rig = True, bindSkin = True):
     layer = cmds.createDisplayLayer(name = "skinDummy", number = 1, noRecurse = True)
     cmds.setAttr(f"{layer}.displayType", 2)
     # create proxies
-    character = BaseRig()
+    character = BodyRig()
     character.construct_proxy()
     if rig == False:
+        if skeleton == True:
+            character.construct_skeleton()
         return
     # create rig
     character.construct_rig()
@@ -105,11 +139,12 @@ def test_build(rig = True, bindSkin = True):
             bindMethod = 0,
             skinMethod = 0,
             normalizeWeights = 1,
-            maximumInfluences = 2)
+            maximumInfluences = 3)
+    cmds.parent(dummy, "geo_GRP")
 
 
 if __name__ == "__main__":
     
-    test_build(rig = True, bindSkin = True)
+    test_build(skeleton = False, rig = True, bindSkin = True)
 
     pass

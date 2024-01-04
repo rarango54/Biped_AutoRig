@@ -2,7 +2,7 @@ import maya.cmds as cmds
 import maya.api.OpenMaya as om2
 
 
-def mtx_hook(driver, target):
+def mtx_hook(driver, target, force = False):
     """connect driver to target"s offsetParentMatrix (OPM) with offset!
     target transforms are left at 0
     exception for joints due to joint orient
@@ -48,7 +48,7 @@ def mtx_hook(driver, target):
     cmds.setAttr(f"{multmtx}.matrixIn[1]", offset, type = "matrix") # offset
     cmds.connectAttr(f"{driver}.worldMatrix[0]", f"{multmtx}.matrixIn[2]")
     cmds.connectAttr(f"{tparent}.worldInverseMatrix[0]", f"{multmtx}.matrixIn[3]")
-    cmds.connectAttr(f"{multmtx}.matrixSum", f"{target}.offsetParentMatrix")
+    cmds.connectAttr(f"{multmtx}.matrixSum", f"{target}.offsetParentMatrix", f = force)
     cmds.xform(target, 
                translation = (0, 0, 0), 
                rotation = (0, 0, 0), 
@@ -97,17 +97,29 @@ def get_distance(obj1, obj2):
     cmds.delete(temp)
     return distance
     
-def attr_separator(targets):
+def distance(obj1, obj2):
+    vec1 = om2.MVector(cmds.xform(obj1, q = True, t = True, ws = True))
+    vec2 = om2.MVector(cmds.xform(obj2, q = True, t = True, ws = True))
+    vec = vec2 - vec1
+    dist = om2.MVector.length(vec)
+    return abs(dist)
+    
+def attr_separator(targets, nr = 1, name = None):
     objects = [targets] if isinstance(targets, str) else targets
+    if name:
+        enum = name + ":"
+        nr = name
+    else: 
+        enum = "____:"
     for obj in objects:
         cmds.addAttr(
             obj,
-            longName = "separator",
-            niceName = "____________",
+            longName = f"separator{nr}",
+            niceName = "_" * 14,
             attributeType = "enum",
-            enumName = "____:")
+            enumName = enum)
         cmds.setAttr(
-            f"{obj}.separator",
+            f"{obj}.separator{nr}",
             e = True,
             channelBox = True,
             keyable = False,
@@ -132,7 +144,7 @@ def insert_scaleInvJoint(controls):
         cmds.connectAttr(f"{obj}.scale", f"{sclJoint}.inverseScale")
         cmds.setAttr(f"{sclJoint}.drawStyle", 2) # 2 = None ~ Invisible
     
-def buffer(target, new_suffix = "buffer_GRP"):
+def buffer(target, new_suffix = "buffer_GRP", position = None):
     """ creates a buffer group as a parent"""
     suffix = target.split("_")[-1]
     name = target.replace(suffix, new_suffix)
@@ -143,6 +155,8 @@ def buffer(target, new_suffix = "buffer_GRP"):
         cmds.parent(buff_grp, world = True)
     else:
         cmds.parent(buff_grp, parent)
+    if position:
+        cmds.matchTransform(buff_grp, position, pos = True, rot = True)
     cmds.parent(target, buff_grp)
     return buff_grp
     
@@ -167,7 +181,14 @@ def lock(transforms,
             if hide == True:
                 cmds.setAttr(f"{obj}.{channel}", channelBox = False)
     
-
+def remap(name, inputattr, min, max, outmin = 0, outmax = 1):
+    rmpv = cmds.shadingNode("remapValue", n = name, au = True)
+    cmds.connectAttr(inputattr, f"{rmpv}.inputValue")
+    cmds.setAttr(rmpv+".inputMin", min)
+    cmds.setAttr(rmpv+".inputMax", max)
+    cmds.setAttr(rmpv+".outputMin", outmin)
+    cmds.setAttr(rmpv+".outputMax", outmax)
+    return rmpv
 
 
 if __name__ == "__main__":

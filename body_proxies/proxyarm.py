@@ -14,24 +14,27 @@ class ProxyArm(object):
         height = 146
         self.proxy_dict = {
             "L_clavicle_PRX" : (
-                [1.5, height, 10], "cube", 2, "green", 
+                [1.5, height, 10], "sphere", 1.5, "green", 
                 ["r","s"]),
             "L_uparm_PRX" : (
-                [17, height, 0], "cube", 3, "green", 
+                [17, height, 0], "sphere", 1.5, "green", 
                 ["rx","s"]),
             "L_lowarm_PRX" : (
-                [46, height, -5], "sphere", 1.5, "grass", 
+                [46, height, -5], "sphere", 1.5, "green", 
                 ["ty","r","s"]),
             "L_hand_PRX" : (
-                [75, height, 0], "octahedron", 1.5, "green", 
+                [75, height, 0], "sphere", 1.5, "green", 
                 ["ty", "rz", "rx", "s"]),
             "L_hand_end_PRX" : (
-                [85, height, 0], "sphere", 1.3, "grass", 
+                [80, height, 0], "sphere", 1, "grass", 
                 ["ty","r","s"]),
             "L_polevector_PRX" : (
-                [45, height, -65], "octahedron", 2.5, "green", 
+                [45, height, -65], "octahedron", 2, "green", 
                 ["t","r","s"]),
         }
+        
+        self.proxies = list(self.proxy_dict)
+        self.hand = self.proxies[3]
 
     def build_proxy(self, proxy_socket):
         proxies = rig.make_proxies(self.proxy_dict, 

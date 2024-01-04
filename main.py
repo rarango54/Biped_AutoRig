@@ -1,67 +1,40 @@
 import maya.cmds as cmds
 import maya.api.OpenMaya as om2
+import math
 
 from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 from utils import bendy
 
-def aim(bendy, aimtarget, uptarget, root, vaim, vup, scldriver = None):
-    """scldriver only for reverse aiming (lowarm & lowleg)"""
-    suffix = bendy.split("_")[0]
-    name = bendy.replace(suffix, "")
-    bendy_buff = util.buffer(bendy)
-    util.mtx_zero([bendy_buff, bendy])
-    cmds.pointConstraint(
-            [root, aimtarget], bendy_buff,
-            n = f"{name}_POINT", offset = (0,0,0), weight = 0.5)
-    cmds.aimConstraint(
-            aimtarget, bendy_buff, 
-            n = f"{name}_AIM", aimVector = vaim, upVector = vup,
-            worldUpObject = uptarget, worldUpType = 1)
-    dist = cmds.shadingNode(
-            "distanceBetween", n = f"{name}_stretch_DBTW", 
-            asUtility = True)
-    cmds.connectAttr(f"{root}.worldMatrix[0]", f"{dist}.inMatrix1")
-    cmds.connectAttr(f"{aimtarget}.worldMatrix[0]", f"{dist}.inMatrix2")
-    orig_dist = cmds.getAttr(f"{dist}.distance")
-    norm = cmds.shadingNode(
-            "multiplyDivide", n = f"{name}_stretch_NORM", 
-            asUtility = True)
-    cmds.setAttr(f"{norm}.operation", 2) # divide
-    cmds.setAttr(f"{norm}.input2X", orig_dist)
-    cmds.connectAttr(f"{dist}.distance", f"{norm}.input1X")
-    # need to divide globalScl
-    glob = cmds.shadingNode(
-            "multiplyDivide", n = f"{name}_globalScl_DIV", 
-            asUtility = True)
-    cmds.setAttr(f"{glob}.operation", 2) # divide
-    cmds.connectAttr(f"{norm}.outputX", f"{glob}.input1Z")
-    if scldriver:
-        cmds.connectAttr(f"{scldriver}.sx", f"{glob}.input1X")
-        cmds.connectAttr(f"{scldriver}.sy", f"{glob}.input1Y")
-    else:
-        cmds.connectAttr(f"{root}.sx", f"{glob}.input1X")
-        cmds.connectAttr(f"{root}.sy", f"{glob}.input1Y")
-    cmds.connectAttr("global_CTRL.scale", f"{glob}.input2")
-    cmds.connectAttr(f"{glob}.output", f"{bendy_buff}.scale")
-
+def distance(obj1, obj2):
+    # define vectors
+    vec1 = om2.MVector(cmds.xform(obj1, q = True, t = True))
+    vec2 = om2.MVector(cmds.xform(obj2, q = True, t = True))
+    # subtract them
+    vec = vec2 - vec1
+    # calculate vector length
+    dist = om2.MVector.length(vec)
+    return dist
     
 if __name__ == "__main__":
     
-    for s in ["L_", "R_"]:
-        aim(bendy = f"{s}uparm_bendy_CTRL",
-            aimtarget = f"{s}elbow_bendy_CTRL", 
-            uptarget = f"{s}uparm_baseTwist_LOC",
-            root = f"{s}uparm_bendy_1_JNT",
-            vaim = (0,0,1),
-            vup = (1,0,0))
-        aim(bendy = f"{s}lowarm_bendy_CTRL",
-            aimtarget = f"{s}elbow_bendy_CTRL", 
-            uptarget = f"{s}lowarm_endTwist_LOC",
-            root = f"{s}lowarm_twist_end_JNT",
-            vaim = (0,0,-1),
-            vup = (1,0,0),
-            scldriver = f"{s}lowarm_JNT")
+    loc = cmds.spaceLocator(n = "test")[0]
+    loc2 = cmds.spaceLocator(n = "test2")[0]
+    cmds.xform(loc, t = (3, 8, 4))
+    cmds.xform(loc2, t = (7, -1, -3.5))
+    dist_new = distance(loc, loc2)
+    dist = util.get_distance(loc, loc2)
+    print("new approach = ", dist_new)
+    print("old approach = ", dist)
+    # orig = cmds.spaceLocator(n = "origin")[0]
+    # cmds.xform(loc, t = (6,2,18))
+    # vec = om2.MVector((6,2,18))
+    # dist = util.get_distance(orig, loc)
+    # length = math.sqrt(6**2 + 2**2 + 18 **2)
+    # mlen = om2.MVector.length(vec)
+    # print(dist)
+    # print(length)
+    # print(mlen)
 
     pass
