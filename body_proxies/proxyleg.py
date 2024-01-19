@@ -67,7 +67,7 @@ class ProxyLeg(object):
         cmds.parent((knee, lowleg), knee_master)
         cmds.parent(toes, foot)
         cmds.parent(toes_end, toes)
-        cmds.pointConstraint(upleg, foot, mo = True, skip = "y", weight = 1)
+        cmds.pointConstraint(upleg, foot, mo = True, skip = ("y", "z"), weight = 1)
         cmds.pointConstraint(upleg, knee_master, mo = True, skip = ("y", "z"), weight = 1)
         cmds.pointConstraint(knee_master, polev, mo = True, weight = 1)
         

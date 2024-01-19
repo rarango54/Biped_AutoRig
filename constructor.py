@@ -104,23 +104,24 @@ class BodyRig(object):
     # all components which don't deform the geo directly are in "misc_GRP"
         cmds.hide("misc_GRP")
 
-def test_build(skeleton = False, rig = True, bindSkin = True):
-    cmds.file(newFile = True, force = True)
-    cmds.modelEditor("modelPanel4", e = True, jointXray = True)
-    path = cmds.workspace(q = True, rootDirectory = True )
-    fbxpath = path + "assets/skinningDummy.fbx"
-    dummy = cmds.file(
-            fbxpath,
-            i = True, typ = "FBX", ignoreVersion = True, renameAll = True, 
-            namespace = "skinningDummy",
-            options = "fbx", importTimeRange = "keep",
-            returnNewNodes = True)[0]
-    cmds.select(dummy)
-    layer = cmds.createDisplayLayer(name = "skinDummy", number = 1, noRecurse = True)
-    cmds.setAttr(f"{layer}.displayType", 2)
-    # create proxies
+def test_build(proxy = True, skeleton = False, rig = True, bindSkin = True):
     character = BodyRig()
-    character.construct_proxy()
+    if proxy == True:
+        cmds.file(newFile = True, force = True)
+        cmds.modelEditor("modelPanel4", e = True, jointXray = True)
+        path = cmds.workspace(q = True, rootDirectory = True )
+        fbxpath = path + "assets/skinningDummy.fbx"
+        dummy = cmds.file(
+                fbxpath,
+                i = True, typ = "FBX", ignoreVersion = True, renameAll = True, 
+                namespace = "skinningDummy",
+                options = "fbx", importTimeRange = "keep",
+                returnNewNodes = True)[0]
+        cmds.select(dummy)
+        layer = cmds.createDisplayLayer(name = "skinDummy", number = 1, noRecurse = True)
+        cmds.setAttr(f"{layer}.displayType", 2)
+        # create proxies
+        character.construct_proxy()
     if rig == False:
         if skeleton == True:
             character.construct_skeleton()
@@ -145,6 +146,10 @@ def test_build(skeleton = False, rig = True, bindSkin = True):
 
 if __name__ == "__main__":
     
-    test_build(skeleton = False, rig = True, bindSkin = True)
+    test_build(proxy = False,
+               skeleton = False, 
+               rig = True, 
+               bindSkin = False
+               )
 
     pass

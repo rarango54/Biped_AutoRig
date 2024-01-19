@@ -40,7 +40,7 @@ def proxy_lock(proxy_dict):
             cmds.setAttr(f"{proxy}.{axis}", lock = True, keyable = False)
             cmds.setAttr(f"{proxy}.{axis}", channelBox = False)
 
-def make_joints(proxies_list, rot_order, radius, prxorient = False):
+def make_joints(proxies_list, rot_order, radius, prxorient = False, set = "joints"):
     cmds.select(clear = True)
     joints_list = []
     for proxy in proxies_list:    # skip proxies that don't need joints!
@@ -52,7 +52,7 @@ def make_joints(proxies_list, rot_order, radius, prxorient = False):
         if prxorient == True:
             cmds.matchTransform(new_joint, proxy, rot = True)
             cmds.makeIdentity(new_joint, apply = True, rotate = True)
-        cmds.sets(new_joint, add = "joints")
+        cmds.sets(new_joint, add =set)
         joints_list.append(new_joint)
     return joints_list
 
@@ -79,7 +79,8 @@ def mirror_ctrls(upChain_ctrls, ctrl_parent):
                 elif cmds.getAttr(f"{s}.overrideColor") == 18:
                     cmds.setAttr(f"{s}.overrideColor", 20)
     r_upChain_ctrls = [x.replace("L_", "R_") for x in objects]
-    mirror_grp = cmds.group(n = "mirror_GRP", empty = True, parent = ctrl_parent)
+    mirror_grp = cmds.group(n = "mirror_GRP", empty = True)
+    # mirror_grp = cmds.group(n = "mirror_GRP", empty = True, parent = ctrl_parent)
     cmds.parent(r_upChain_ctrls, mirror_grp)
     cmds.setAttr(f"{mirror_grp}.sx", -1)
     cmds.parent(r_upChain_ctrls, ctrl_parent)

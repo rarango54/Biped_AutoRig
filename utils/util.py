@@ -181,14 +181,41 @@ def lock(transforms,
             if hide == True:
                 cmds.setAttr(f"{obj}.{channel}", channelBox = False)
     
-def remap(name, inputattr, min, max, outmin = 0, outmax = 1):
+def remap(name, inputattr, min, max, outmin = 0, outmax = 1, exp = False):
     rmpv = cmds.shadingNode("remapValue", n = name, au = True)
     cmds.connectAttr(inputattr, f"{rmpv}.inputValue")
     cmds.setAttr(rmpv+".inputMin", min)
     cmds.setAttr(rmpv+".inputMax", max)
     cmds.setAttr(rmpv+".outputMin", outmin)
     cmds.setAttr(rmpv+".outputMax", outmax)
+    if exp == True:
+        cmds.setAttr(rmpv+".value[0].value_Interp", 3)
+        cmds.setAttr(rmpv+".value[1].value_Interp", 3)
+        cmds.setAttr(rmpv+".value[2].value_FloatValue", 0.075)
+        cmds.setAttr(rmpv+".value[2].value_Position", 0.3)
+        cmds.setAttr(rmpv+".value[2].value_Interp", 3)
+        cmds.setAttr(rmpv+".value[3].value_FloatValue", 0.25)
+        cmds.setAttr(rmpv+".value[3].value_Position", 0.6)
+        cmds.setAttr(rmpv+".value[3].value_Interp", 3)
+        cmds.setAttr(rmpv+".value[4].value_FloatValue", 0.6)
+        cmds.setAttr(rmpv+".value[4].value_Position", 0.85)
+        cmds.setAttr(rmpv+".value[4].value_Interp", 1)
     return rmpv
+
+def pointcurve(name, nodes, degree = 1):
+    objects = [nodes] if isinstance(nodes, str) else nodes
+    positions = []
+    args = {}
+    for n, obj in enumerate(objects):
+        pos = cmds.xform(obj, q = True, t = True, worldSpace = True)
+        positions.append(pos)
+        # args[f"p{n}"] = pos
+    curve = eval(
+        f"cmds.curve(n = name, degree = degree, p = {positions})")
+    shape = cmds.rename(
+                cmds.listRelatives(curve, children = True, shapes = True),
+                curve+"Shape")
+    return curve
 
 
 if __name__ == "__main__":

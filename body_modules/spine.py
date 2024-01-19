@@ -64,23 +64,31 @@ class Spine(object):
     def controls(self, ctrl_socket, spaces):
         size = util.distance(self.hip_jnt, self.chest_up_jnt)/2
         fly = Nurbs.fly(self.fly, size*3)
-        cog = Nurbs.sphere(self.cog, size/6, "grass", "zxy")
-        body = Nurbs.box(self.body, size*1.5, size/2, size*1.2, "yellow", "zxy")
+        cog = Nurbs.sphere(self.cog, size/6, "purple", "zxy")
+        body = Nurbs.box(self.body, size*2, size/2, size*1.5, "yellow", "zxy")
         body_sub = Nurbs.box(self.body_sub, size*1.8, size/4, size*1.5, "pink", "zxy")
-        hip = Nurbs.swoop_circle(self.hip, size*0.75, "brown", "yzx")
-        hip_sub = Nurbs.swoop_circle(self.hip_sub, size*0.5, "pink", "yzx")
-        waist = Nurbs.square(self.waist, size*1.5, "brown", "zxy")
-        chest = Nurbs.swoop_circle(self.chest, size, "yellow", "zyx")
-        chest_sub = Nurbs.swoop_circle(self.chest_sub, size*0.9, "pink", "zyx")
+        # hip = Nurbs.swoop_circle(self.hip, size*0.75, "brown", "yzx")
+        hip = Nurbs.sphere(self.hip, size/6, "yellow", "yzx")
+        hip_sub = Nurbs.swoop_circle(self.hip_sub, size, "pink", "yzx")
+        # waist = Nurbs.square(self.waist, size*1.5, "brown", "zxy")
+        waist = Nurbs.sphere(self.waist, size/8, "brown", "zxy")
+        # chest = Nurbs.swoop_circle(self.chest, size*1.2, "yellow", "zyx")
+        chest = Nurbs.sphere(self.chest, size/6, "yellow", "zyx")
+        chest_sub = Nurbs.swoop_circle(self.chest_sub, size, "pink", "zyx")
         breath_grp = cmds.group(n = self.breath_drive, em = True)
-        chest_up = Nurbs.swoop_circle(self.chest_up, size*0.75, "brown", "zyx")
+        # chest_up = Nurbs.swoop_circle(self.chest_up, size*0.75, "brown", "zyx")
+        chest_up = Nurbs.sphere(self.chest_up, size/8, "brown", "zyx")
         breath = Nurbs.triangle(self.breath, size/3, size/6, "pink")
         ribs = cmds.group(n = self.ribcage, em = True)
         socket = cmds.group(n = self.chest_up_socket, em = True)
-    # make cog visible through geo like xRay
-        shapes = cmds.listRelatives(self.cog, children = True, shapes = True)
-        for s in shapes:
-            cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
+    # move chest & sub a bit higher
+        # cmds.move(0,size/2,0, chest+".cv[0:7]", r = True, localSpace = True)
+        cmds.move(0,size/2,0, chest_sub+".cv[0:7]", r = True, localSpace = True)
+    # make visible through geo like xRay
+        for xray in [cog, hip, waist, chest, chest_up]:
+            shapes = cmds.listRelatives(xray, children = True, shapes = True)
+            for s in shapes:
+                cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
         
     # ctrl : (position & parent)
         relations = {
@@ -113,9 +121,10 @@ class Spine(object):
             cmds.setAttr(f"{ctrl}.rotateOrder", channelBox = True)
         
 ####### Attributes
-        util.attr_separator([body, chest, breath])
+        util.attr_separator([body, hip, chest, breath])
         rig.sub_ctrl_vis(self.body_sub)
         rig.sub_ctrl_vis(self.chest_sub)
+        rig.sub_ctrl_vis(self.hip_sub)
         # fly and cog invisible by default
         cmds.addAttr(self.body, longName = "cog_ctrl", attributeType = "double", 
                      defaultValue = 0, min = 0, max = 1)
@@ -233,7 +242,7 @@ class Spine(object):
         cmds.sets(spine_jnts, add = "joints")
         cmds.parent(spine_jnts[0], base_driver)
         # ikSpline curve
-        crv_points = [self.hip_jnt, spine_jnts[1], self.waist_jnt, 
+        crv_points = [self.hip_jnt, spine_jnts[2], self.waist_jnt, 
                       self.chest_jnt, self.chest_up_jnt]
         curve = bendy.crv(mod_name+"_ikSpline_CRV", crv_points, 3)
         bendy.ikspline(
@@ -248,10 +257,12 @@ class Spine(object):
             curve = curve)
         skin = f"{mod_name}_ikSpline_SKIN"
         # first 2 CVs driven by hip jnt
-        cmds.skinPercent(skin, f"{curve}.cv[1]", 
+        cmds.skinPercent(skin, curve+".cv[1]", 
                          transformValue = (f"{mod_name}_bendy_1_JNT", 1))
         # top 2 CVs driven by chest
-        cmds.skinPercent(skin, f"{curve}.cv[3]", 
+        cmds.skinPercent(skin, curve+".cv[3]", 
+                         transformValue = (f"{mod_name}_bendy_3_JNT", 1))
+        cmds.skinPercent(skin, curve+".cv[4]", 
                          transformValue = (f"{mod_name}_bendy_3_JNT", 1))
         util.mtx_hook(self.chest_jnt, f"{mod_name}_bendy_3_JNT", force = True)
         

@@ -61,10 +61,17 @@ class Neck(object):
         nsize = util.distance(self.neck_jnt, self.head_jnt)
         hsize = util.distance(self.head_jnt, self.head_end_jnt)
     # ctrl shapes
-        neck = Nurbs.swoop_circle(self.neck, nsize/2)
+        neck = Nurbs.sphere(self.neck, nsize/10, "yellow", "yzx")
+        nshapes = cmds.listRelatives(neck, children = True, shapes = True)
+        for shp in nshapes:
+            cmds.setAttr(shp+".alwaysDrawOnTop", 1)
+        # neck = Nurbs.swoop_circle(self.neck, nsize/2)
         neck_sub = Nurbs.swoop_circle(self.neck_sub, nsize/2.5, "orange")
-        head = Nurbs.box(self.head, hsize, hsize*1.5, hsize,"yellow", "xzy")
-        head_sub = Nurbs.box(self.head_sub, hsize/2.2, hsize/1.1, hsize/2.2, "orange", "xzy")
+        head = Nurbs.box(self.head, hsize, hsize/6, hsize,"yellow", "xzy")
+        head_sub = Nurbs.box(
+                self.head_sub, hsize*0.8, hsize/8, hsize*0.8, "orange", "xzy")
+        cmds.move(0, hsize*0.8, 0, head+".cv[0:15]", r = True)
+        cmds.move(0, hsize*0.8, 0, head_sub+".cv[0:15]", r = True)
         
     # expose rotateOrder
         cmds.setAttr(f"{head}.rotateOrder", channelBox = True)

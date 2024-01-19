@@ -109,9 +109,9 @@ class Legs(object):
         
     # FK ctrls
         dist = util.distance(self.upleg_jnt, self.knee_jnt)
-        fk_upleg = Nurbs.fk_box(self.upleg_fk, scl, dist*0.75, "blue", fk_ro)
+        fk_upleg = Nurbs.fk_box(self.upleg_fk, scl/10, dist*0.9, "blue", fk_ro)
         fk_knee = cmds.group(n = self.knee_fk, empty = True)
-        fk_lowleg = Nurbs.fk_box(self.lowleg_fk,scl, dist*0.6, "blue", fk_ro)
+        fk_lowleg = Nurbs.fk_box(self.lowleg_fk,scl/10, dist*0.9, "blue", fk_ro)
         fk_foot = Nurbs.box(self.foot_fk, scl, scl, scl/3, "blue", fk_ro)
         fk_toes = Nurbs.box(self.toes_fk, scl, scl/1.5, scl/3, "blue", fk_ro)
         Nurbs.flip_shape(fk_upleg, "y")
@@ -119,11 +119,18 @@ class Legs(object):
         Nurbs.flip_shape(fk_foot, "y")
         
     # IK ctrls
-        ik_foot = Nurbs.cube(self.foot_ik, scl*1.2, "blue", "zxy")
+        # ik_foot = Nurbs.cube(self.foot_ik, scl*1.2, "blue", "zxy")
+        ik_foot = Nurbs.octahedron(self.foot_ik, scl/4, "blue", "zxy")
         ik_foot_sub = Nurbs.square(self.foot_sub_ik, scl*1.4, "sky", "zxy")
         # ik_align = Nurbs.box(self.foot_align, scl*1.6, scl/6, scl/6, "sky", "zxy")
         ik_pv = Nurbs.octahedron(self.polevector, scl/3, "blue")
         ik_hipj = Nurbs.square(self.hipjoint_ik, scl*2.5, "blue", "zxy")
+    
+    # see through geo like xRay
+        for xray in [fk_upleg, fk_lowleg, ik_foot]:
+            shapes = cmds.listRelatives(xray, children = True, shapes = True)
+            for s in shapes:
+                cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
         
     # bendies
         upleg_b = Nurbs.double_lolli(self.upleg_b, dist/4, "sky", "zyx")
@@ -134,8 +141,8 @@ class Legs(object):
         Nurbs.flip_shape(knee_b, "-y")
             
     # switcher
-        switch = Nurbs.switcher(self.switch, dist/9)
-        Nurbs.flip_shape(switch, "-x")
+        switch = Nurbs.switcher(self.switch, dist/10)
+        # Nurbs.flip_shape(switch, "-x")
         
     # expose rotateOrder
         for ro in [fk_upleg, fk_foot, ik_foot, ik_hipj]:
@@ -212,7 +219,7 @@ class Legs(object):
         util.mtx_zero([aim1, aim2])
         util.lock([aim1, aim2])
     # offset switch_ctrl to side of ankle
-        cmds.move(dist/2, 0, 0, switch, relative = True)
+        cmds.move(0, 0, -dist/2, switch, relative = True)
         
 ####### Attributes
         util.attr_separator([fk_upleg, ik_foot, ik_hipj, ik_pv])
@@ -279,12 +286,14 @@ class Legs(object):
         rig.mirror_ctrls([upleg_b, lowleg_b, knee_b_buff], ikctrl_mirror_grp)
     
     ### Spaces
+        pv_spaces = spaces.copy()
+        pv_spaces.insert(0, self.foot_ik)
         upleg_space = rig.spaces(spaces[:-1], fk_upleg, r_only = True)
         rig.spaces(spaces[:-1], fk_upleg.replace("L_", "R_"), r_only = True)
         rig.spaces(spaces, ik_foot)
         rig.spaces(spaces, ik_foot.replace("L_", "R_"), rside = True)
-        rig.spaces(spaces, ik_pv)
-        rig.spaces(spaces, ik_pv.replace("L_", "R_"), rside = True)
+        rig.spaces(pv_spaces, ik_pv)
+        rig.spaces(pv_spaces, ik_pv.replace("L_", "R_"), rside = True)
         rig.spaces(spaces[:-1], ik_hipj, r_only = True)
         rig.spaces(spaces[:-1], ik_hipj.replace("L_", "R_"), r_only = True)
     
@@ -530,7 +539,7 @@ class Legs(object):
                     [f"{s}knee_JNT", f"{s}lowleg_JNT"], knee_pin_grp, 
                     mo = False, weight = 1)
             cmds.delete(snap2)
-            util.mtx_hook(f"{s}knee_IK_JNT", knee_pin_grp)
+            util.mtx_hook(f"{s}knee_JNT", knee_pin_grp)
             
     # ankle align
         for s in ["L_", "R_"]:

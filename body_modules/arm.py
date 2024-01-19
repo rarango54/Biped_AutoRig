@@ -89,14 +89,13 @@ class Arms(object):
       
     # FK ctrls
         cdist = util.distance(self.clavicle_jnt, self.uparm_jnt)
-        clav = Nurbs.shoulder(self.clavicle_fk, cdist, "blue", fk_ro)
+        clav = Nurbs.fk_box(self.clavicle_fk, 
+            wid/8, cdist*0.9, "blue", fk_ro)
+        # clav = Nurbs.shoulder(self.clavicle_fk, cdist, "blue", fk_ro)
         fk_uparm = Nurbs.fk_box(self.uparm_fk,
-            wid/10, leng*0.9, "blue", fk_ro)
+            wid/8, leng*0.9, "blue", fk_ro)
         fk_lowarm = Nurbs.fk_box(self.lowarm_fk,
-            wid/10, leng*0.9, "blue", fk_ro)
-        # see through geo
-        cmds.setAttr(fk_uparm+"Shape.alwaysDrawOnTop", 1)
-        cmds.setAttr(fk_lowarm+"Shape.alwaysDrawOnTop", 1)
+            wid/8, leng*0.7, "blue", fk_ro)
         fk_hand = Nurbs.box(self.hand_fk,
             wid, wid, wid/3, "blue", fk_ro)
         
@@ -105,16 +104,21 @@ class Arms(object):
         ik_hand_sub = Nurbs.square(self.hand_sub_ik, wid*1.4, "sky", "zxy")
         Nurbs.flip_shape(ik_hand_sub, "-y")
         ik_align = Nurbs.box(self.hand_align, wid/6, wid*1.4, wid/6, "sky", "zxy")
-        ik_pv = Nurbs.octahedron(self.polevector, leng/3, "blue")
+        ik_pv = Nurbs.octahedron(self.polevector, leng/12, "blue")
         ik_should = Nurbs.square(self.shoulder_ik, wid*2.5, "blue")
         Nurbs.flip_shape(ik_should, "-y")
+    # see through geo like xRay
+        for xray in [clav, fk_uparm, fk_lowarm]:
+            shapes = cmds.listRelatives(xray, children = True, shapes = True)
+            for s in shapes:
+                cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
     # bendies
         uparm_b = Nurbs.double_lolli(self.uparm_b, leng/4, "sky", "zyx")
         lowarm_b = Nurbs.double_lolli(self.lowarm_b, leng/4, "sky", "zyx")
         elbow_b = Nurbs.double_lolli(self.elbow_b, leng/4, "sky", "zyx")
         elbow_buff = util.buffer(elbow_b)
     # switcher
-        switch = Nurbs.switcher(self.switch, leng/6)
+        switch = Nurbs.switcher(self.switch, leng/8)
         Nurbs.flip_shape(switch, "-x")
         
     # expose rotateOrder
@@ -140,6 +144,8 @@ class Arms(object):
         for ctrl in list(relations):
             cmds.matchTransform(ctrl, relations[ctrl][0], pos = True, rot = True)
             cmds.parent(ctrl, relations[ctrl][1])
+    # remove rot on polevector
+        cmds.rotate(0,0,0, self.polevector, worldSpace = True)
     # position bendies
         uparm_pc = cmds.pointConstraint(
                 (self.uparm_jnt, self.lowarm_jnt), uparm_b, 
@@ -254,10 +260,15 @@ class Arms(object):
     ### FK setup
         for s in ["L_", "R_"]:
         # clavicle
-            cmds.parentConstraint(
-                f"{s}clavicle_CTRL", f"{s}clavicle_JNT", mo = True, weight = 1)
-            cmds.scaleConstraint(
-                f"{s}clavicle_CTRL", f"{s}clavicle_JNT", mo = True, weight = 1)
+            clav = s+"clavicle_CTRL"
+            cmds.parentConstraint(clav, f"{s}clavicle_JNT", mo = True, weight = 1)
+            cmds.scaleConstraint(clav, f"{s}clavicle_JNT", mo = True, weight = 1)
+            # lock rz and add twist attr instead
+            cmds.addAttr(clav, longName = "twist", attributeType = "double", 
+                         defaultValue = 0)
+            cmds.setAttr(clav+".twist", e = True, keyable = True)
+            cmds.connectAttr(clav+".twist", clav+".rz")
+            cmds.setAttr(clav+".rz", lock = True, k = False, cb = False)
         # uparm_jnt with constraint to make space switches work later
             cmds.pointConstraint(
                 f"{s}uparm_FK_CTRL", f"{s}uparm_FK_JNT", mo = False, weight = 1)
@@ -449,6 +460,7 @@ class Arms(object):
         util.lock(self.hand_fk, ["tx","ty","tz"], rsidetoo = True)
         util.lock(self.polevector, ["rx","ry","rz","sx","sy","sz"], rsidetoo = True)
         util.lock(self.shoulder_ik, ["sx","sy"], rsidetoo = True)
+        util.lock(self.clavicle_fk, ["sx","sy"], rsidetoo = True)
         util.lock(self.hand_align, ["tx","ty","tz","sx","sy","sz"], rsidetoo = True)
         
     # hide IK & FK joint chains

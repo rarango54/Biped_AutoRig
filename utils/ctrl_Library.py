@@ -27,6 +27,13 @@ class Nurbs(object):
         return ctrl
     
     @classmethod
+    def circle(cls, name, radius, color='sky', rotOrder='xyz'):
+        ctrl = cmds.circle(
+            n=name, c=(0,0,0), nr=(0,0,1),sw=360, r=radius, d=3, ch=0)[0]
+        cls.ctrl_config(cls, ctrl, color, rotOrder)
+        return ctrl
+    
+    @classmethod
     def double_circle(cls, name, radius, color='green', rotOrder='xzy'):
         ctrl = cmds.group(n=name, em=True, w=True)
         for i in [1, 0.9]:
@@ -167,7 +174,7 @@ class Nurbs(object):
     @classmethod
     def metacarpal(cls, name, size, color='blue', rotOrder='zyx'):
         length = 0.75 * size
-        ctrl = cmds.circle(n=name,c=[0, size, length/3],
+        ctrl = cmds.circle(n=name,c=[0, size, length*1.2],
             nr=[1,0,0],sw=360,r= length, d=3, s=8,ch=0
             )[0]
         for n in [4,5,6]:
@@ -246,7 +253,7 @@ class Nurbs(object):
         cls.ctrl_config(cls, ctrl, color, rotOrder)
         return ctrl
     @classmethod
-    def lineconnect(cls, name, nodes, proxy = True):
+    def lineconnect(cls, name, nodes, proxy = True, degree = 1):
         objects = [nodes] if isinstance(nodes, str) else nodes
         positions = []
         args = {}
@@ -255,13 +262,16 @@ class Nurbs(object):
             positions.append(pos)
             args[f"p{n}"] = pos
         curve = eval(
-            f"cmds.curve(n = f'{name}_line_CRV', degree = 1, p = {positions})")
+            f"cmds.curve(n = f'{name}_line_CRV', degree = degree, p = {positions})")
         shape = cmds.rename(
                     cmds.listRelatives(curve, children = True, shapes = True),
                     f"{curve}Shape")
         for n, obj in enumerate(nodes):
             # connect objs through decomp_mtx to curve's control cvs
-            dmtx = cmds.createNode("decomposeMatrix", n = f"{name}_cv{n}_DM")
+            if proxy == True:
+                dmtx = cmds.createNode("decomposeMatrix", n = f"{name}_cv{n}_prx_DM")
+            else:
+                dmtx = cmds.createNode("decomposeMatrix", n = f"{name}_cv{n}_DM")
             cmds.connectAttr(f"{obj}.worldMatrix[0]", f"{dmtx}.inputMatrix")
             cmds.connectAttr(f"{dmtx}.outputTranslateX", 
                              f"{curve}Shape.controlPoints[{n}].xValue")
@@ -279,8 +289,6 @@ class Nurbs(object):
             cmds.setAttr(f"{shape}.overrideDisplayType", 1)
             cmds.setAttr(f"{shape}.alwaysDrawOnTop", 0)
         return curve
-    # FK
-    # bendy
 
     @classmethod
     def flip_shape(cls, ctrl, orient = 'z', scale = (1,1,1)):
@@ -301,7 +309,7 @@ class Nurbs(object):
         cmds.setAttr(f'{ctrl}.scaleZ', scale[2])
         cmds.makeIdentity(ctrl, a=True, s=1)
         
-    def ctrl_config(self, ctrl, color, rotOrder):
+    def ctrl_config(self, ctrl, color = "green", rotOrder = None):
         """ only to be used inside the 'Nurbs' classmethods
         assign color to shapes + rename shapes to match transform name + define rotate order """
         colors = {
@@ -323,16 +331,18 @@ class Nurbs(object):
             cmds.setAttr(f'{s}.overrideEnabled', 1)
             cmds.setAttr(f'{s}.overrideColor', colors[color])
             cmds.rename(s, f'{ctrl}Shape')
-        rotOrders = {
-            'xyz'   :   0,
-            'yzx'   :   1,
-            'zxy'   :   2,
-            'xzy'   :   3,
-            'yxz'   :   4,
-            'zyx'   :   5,}
-        cmds.setAttr(f'{ctrl}.ro', rotOrders[rotOrder])
+        if rotOrder:
+            rotOrders = {
+                'xyz'   :   0,
+                'yzx'   :   1,
+                'zxy'   :   2,
+                'xzy'   :   3,
+                'yxz'   :   4,
+                'zyx'   :   5,}
+            cmds.setAttr(f'{ctrl}.ro', rotOrders[rotOrder])
 
 if __name__ == "__main__":
     
-    Nurbs.halfcircle("test", 50, "green")
+    test = Nurbs.circle("test", 50, "green")
+    cmds.move(0,0,20, test+".cv[0:7]", r = True)
     pass

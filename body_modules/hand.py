@@ -73,7 +73,7 @@ class Hands(object):
         cmds.matchTransform(hand_grp, "L_hand_JNT", pos = True, rot = True)
     # FK controls
         # scl = thickness of fk ctrls
-        scl = cmds.getAttr("L_middle_2_JNT.tz") / 2
+        scl = cmds.getAttr("L_middle_2_JNT.tz") / 4
         ro = "zyx"
         prev_dist = scl
         for name in self.allfinger_ctrls:
@@ -88,12 +88,30 @@ class Hands(object):
                 dist = prev_dist
             # create ctrl based on distance
             if "meta" in name:
-                ctrl = Nurbs.metacarpal(name, scl, "blue", ro)
+                if "thumb" in name:
+                    ctrl = Nurbs.fk_box(name, scl/5, dist, "blue", ro)
+                    cmds.setAttr(ctrl+"Shape.alwaysDrawOnTop", 1)
+                else:
+                    ctrl = Nurbs.metacarpal(name, scl, "blue", ro)
+                    # ctrl = Nurbs.sphere(name, scl/3, "blue", ro)
             else:
-                ctrl = Nurbs.fk_box(name, scl, dist, "blue", ro)
+                ctrl = Nurbs.fk_box(name, scl/5, dist, "blue", ro)
+                cmds.setAttr(ctrl+"Shape.alwaysDrawOnTop", 1)
+                # ctrl = Nurbs.fk_box(name, scl, dist, "blue", ro)
+                # shapes = cmds.listRelatives(ctrl, children = True, shapes = True)
+                # for shp in shapes:
             # snap ctrl to joint
             cmds.matchTransform(ctrl, jnt, pos = True, rot = True)
             prev_dist = dist
+        # 2 finger chains different color
+        for mid in self.middle_ctrls[1:]:
+            shapes = cmds.listRelatives(mid, children = True, shapes = True)
+            for shp in shapes:
+                cmds.setAttr(shp+".overrideColor", 18) # sky
+        for ring in self.ring_ctrls[1:]:
+            shapes = cmds.listRelatives(ring, children = True, shapes = True)
+            for shp in shapes:
+                cmds.setAttr(shp+".overrideColor", 18) # sky
             
     ### parenting loop for each chain of finger ctrls
         for finger in [self.index_ctrls, self.middle_ctrls, self.ring_ctrls, 
@@ -104,13 +122,22 @@ class Hands(object):
                 cmds.parent(finger[neg], finger[neg-1])
                     
     # fingerMaster ctrl
-        master = Nurbs.metaMaster(self.master, scl)
+        master = Nurbs.metaMaster(self.master, scl*1.5)
         cmds.matchTransform(master, "L_ring_meta_JNT", pos = True, rot = True)
     
     # parent ctrls into hand_grp
         cmds.parent(self.allmeta_ctrls, hand_grp)
         cmds.parent(self.master, hand_grp)
         
+    # meta buffer grps for fingerMaster macro layer
+        meta_buffs = []
+        for nr, meta in enumerate(
+            ["L_middle_meta_CTRL", "L_ring_meta_CTRL", "L_pinky_meta_CTRL"]
+                ):
+            buff = util.buffer(meta, "macro_GRP")
+            cmds.setAttr(f"{buff}.rotateOrder", 5) # zyx
+            meta_buffs.append(buff)
+            
 ####### Attributes
         util.attr_separator(master)
         # cmds.addAttr(master, longName = "curl", attributeType = "double", 
@@ -133,6 +160,7 @@ class Hands(object):
         
     # cleanup
         util.mtx_zero(L_ctrls, rsidetoo = True)
+        util.mtx_zero(meta_buffs, rsidetoo = True)
         for sclinv in [
                 self.index_ctrls[1:], self.middle_ctrls[1:], self.ring_ctrls[1:],
                 self.pinky_ctrls[1:], self.thumb_ctrls[1:]
@@ -170,9 +198,7 @@ class Hands(object):
             for nr, meta in enumerate(
                 [f"{s}middle_meta_CTRL", f"{s}ring_meta_CTRL", f"{s}pinky_meta_CTRL"]
                     ):
-                buff = util.buffer(meta, "macro_GRP")
-                cmds.setAttr(f"{buff}.rotateOrder", 5) # zyx
-                util.mtx_zero(meta)
+                buff = meta.replace("_CTRL", "_macro_GRP") # created in controls()
                 jnt = meta.replace("_CTRL", "_JNT")
             # middle
                 if nr == 0:
@@ -219,7 +245,10 @@ class Hands(object):
                     cmds.connectAttr(f"{pma}.output3D", f"{jnt}.r", force = True)
         
         partials = helpers.partial(self.onlyfinger_jnts, rsidetoo = True)
-        cmds.sets(partials, add = "helper_joints")
+        # end up in "bind_joints" set since they are duplicated
+        for p in partials:
+            jnt = p.replace("_partial_JNT", "_JNT")
+            cmds.connectAttr(jnt+".s", p+".s")
                     
                     
     ### clean up attributes - lock & hide
