@@ -131,7 +131,7 @@ class Eyes(object):
         # cmds.sets(r_ctrls, add = "R_arm")
         
     # cleanup
-        util.mtx_zero([aim, aim_offset, eye, aim_grp], rsidetoo = True)
+        util.mtx_zero([socket, aim, aim_offset, eye, aim_grp], rsidetoo = True)
         # util.mtx_zero(r_ctrls)
         # rig.fk_sclinvert([uparm_space[0], fk_lowarm, fk_hand], rsidetoo = True)
         

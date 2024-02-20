@@ -33,26 +33,31 @@ class Brows(object):
         # setup
         rad = cmds.getAttr(joint_socket+".radius")/4
     ### joints
+        joints = []
         for nr, v in enumerate(brow_vtx):
             cmds.select(clear = True)
             pos = cmds.xform(v, q = True, t = True, ws = True)
             jnt = cmds.joint(n = f"L_brow_{nr+1}_JNT", p = pos, rad = rad)
             self.brow_crv_jnts.append(jnt)
+            joints.append(jnt)
             # cmds.joint(jnt, e = True, orientJoint = "zyx", 
             #            secondaryAxisOrient = "yup")
         # mirror
-### noInvScale = True ???
             cmds.parent(jnt, joint_socket, noInvScale = True) # head_JNT
             mirr_jnt = cmds.mirrorJoint(
                 jnt, 
                 mirrorYZ = True, 
                 mirrorBehavior = True, 
                 searchReplace = ["L_", "R_"])[0]
+            joints.append(mirr_jnt)
         
         cmds.select(clear = True)
         mid = cmds.joint(n = self.center_jnt, rad = rad*2.5)
         cmds.parent(mid, joint_socket, noInvScale = True)
         cmds.matchTransform(mid, self.brow_crv_jnts[0], py = True, pz = True)
+
+        cmds.sets(joints, add = "fbind_joints")
+        cmds.sets(joints, add = "fjoints")
     
 ##### CONTROLS #####################################################################
     def controls(self, ctrl_socket):
@@ -102,9 +107,9 @@ class Brows(object):
 ####### Attributes
         # util.attr_separator([x, y, z])
         for c in self.brow_ctrls:
-            cmds.addAttr(c, longName = "z", attributeType = "double", 
+            cmds.addAttr(c, longName = "Z", attributeType = "double", 
                          defaultValue = 0)
-            cmds.setAttr(c+".z", e = True, keyable = True)
+            cmds.setAttr(c+".Z", e = True, keyable = True)
         
     ### R_ctrls & Mirroring
         mirr_grp = cmds.group(
@@ -112,13 +117,13 @@ class Brows(object):
                 parent = ctrl_socket)
         cmds.setAttr(mirr_grp+".sx", -1)
         rig.mirror_ctrls(ctrl_grp, mirr_grp)
-        
     
     # selection sets
-        # all_ctrls = self.brow_ctrls
-        # r_ctrls = [x.replace("L_", "R_") for x in all_ctrls]
-        # all_ctrls.extend(r_ctrls)
-        # cmds.sets(all_ctrls, add = "brows")
+        set_grp = self.brow_ctrls.copy()
+        for ctrl in set_grp:
+            if ctrl.startswith("L_"):
+                set_grp.append(ctrl.replace("L_", "R_"))
+        cmds.sets(set_grp, add = "brows")
         
     # cleanup
         util.mtx_zero(self.brow_ctrls, rsidetoo = True)
@@ -132,8 +137,10 @@ class Brows(object):
 
     ### locators to drive joints
         locs = []
+        loc_grps = []
         for s in ["L_", "R_"]:
             loc_grp = cmds.group(n = s+"brows_loc_GRP", em = True)
+            loc_grps.append(loc_grp)
             joints = cmds.ls(s+"brow_*_JNT")
             for j in joints:
                 rad = cmds.getAttr(j+".radius")/2
@@ -240,15 +247,24 @@ class Brows(object):
                 [self.bin, self.bin.replace("L_", "R_")], self.center_jnt,
                 mo = True, weight = 1, n = "brows_centerjnt_PC")
         
-    ### clean up attributes - lock & hide
+    ### clean up
+        sort = [crv_grp]
+        sort.extend(loc_grps)
+        cmds.hide(sort)
+        brows_grp = cmds.group(n = "brows_GRP", em = True, p = "fmisc_GRP")
+        cmds.parent(sort, brows_grp)
         for ctrl in self.brow_ctrls:
-            cmds.connectAttr(ctrl+".z", ctrl+".tz")
+            mult = cmds.shadingNode(
+                    "multDoubleLinear", n = ctrl.replace("CTRL", "zattr_MULT"), au = True)
+            cmds.setAttr(mult+".input2", 0.1)
+            cmds.connectAttr(ctrl+".Z", mult+".input1")
+            cmds.connectAttr(mult+".output", ctrl+".tz")
         util.lock(self.brow_ctrls, ["tz","rx","ry", "rz","sx","sy","sz"])
         # util.lock(self.brow_ctrls, ["tz","rx","ry","sx","sy","sz"], rsidetoo = True)
 
 ### missing:
     # Face Tuning for in & out ctrls:
-        # Z depth for currogator (in_ctrl.tx)
+        # Z depth for currogator (in_ctrl.tx drives tz)
         # Z depth for overall brow UD (layered from main.ty + ctrl.ty)
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ class Orbitals(object):
         low_vtx.reverse()
         # setup
         rad = cmds.getAttr(joint_socket+".radius")/5
-        tip_jnts = []
+        orb_jnts = []
         for part, vtx in enumerate([up_vtx, low_vtx, [incorner, outcorner]]):
             # part 0 = uporb, 1 = loworb, 2 = inoutcorners
             if part == 0:
@@ -59,7 +59,7 @@ class Orbitals(object):
                 cmds.select(clear = True)
                 vpos = cmds.xform(v, q = True, t = True, ws = True)
                 vjnt = cmds.joint(n = f"{name}_{nr+1}_JNT", p = vpos, rad = rad)
-                tip_jnts.append(vjnt)
+                orb_jnts.append(vjnt)
             # mirror
                 cmds.parent(vjnt, "head_JNT")
                 mirr_jnt = cmds.mirrorJoint(
@@ -67,9 +67,13 @@ class Orbitals(object):
                     mirrorYZ = True, 
                     mirrorBehavior = True, 
                     searchReplace = ["L_", "R_"])[0]
-### noInvScale = True ???
-                cmds.parent(vjnt, joint_socket)
-                cmds.parent(mirr_jnt, joint_socket.replace("L_", "R_"))
+                orb_jnts.append(mirr_jnt)
+
+                cmds.parent(vjnt, joint_socket, noInvScale = True)
+                cmds.parent(mirr_jnt, joint_socket.replace("L_", "R_"), noInvScale = True)
+        
+        cmds.sets(orb_jnts, add = "fbind_joints")
+        cmds.sets(orb_jnts, add = "fjoints")
     
 ##### CONTROLS #####################################################################
     def controls(self, ctrl_socket):
@@ -122,10 +126,11 @@ class Orbitals(object):
         rig.mirror_ctrls(ctrl_grp, mirr_grp)
     
     # selection sets
-        # all_ctrls = self.orb_ctrls
-        # r_ctrls = [x.replace("L_", "R_") for x in all_ctrls]
-        # all_ctrls.extend(r_ctrls)
-        # cmds.sets(all_ctrls, add = "orbs")
+        set_grp = self.orb_ctrls.copy()
+        for ctrl in set_grp:
+            if ctrl.startswith("L_"):
+                set_grp.append(ctrl.replace("L_", "R_"))
+        cmds.sets(set_grp, add = "lids")
         
     # cleanup
         util.mtx_zero(self.orb_ctrls, rsidetoo = True)
@@ -141,9 +146,11 @@ class Orbitals(object):
 
     ### point locators
         rad = cmds.getAttr(joint_socket+".radius")/5
+        loc_grps = []
         for s in ["L_", "R_"]:
 ### loc groups under "misc_GRP"
             loc_grp = cmds.group(n = s+"orbs_loc_GRP", em = True)
+            loc_grps.append(loc_grp)
             locs = []
             joints = cmds.ls(s+"*orb*_JNT")
             for j in joints:
@@ -294,7 +301,12 @@ class Orbitals(object):
                 cmds.pointConstraint(s+lidc, s+orbc, mo = True, weight = 1,
                                      n = s+orbc.replace("_CTRL", "lidcorner_POINT"))
         
-    ### clean up attributes - lock & hide
+    ### clean up
+        sort = [crv_grp]
+        sort.extend(loc_grps)
+        cmds.hide(sort)
+        orbs_grp = cmds.group(n = "orbitals_GRP", em = True, p = "fmisc_GRP")
+        cmds.parent(sort, orbs_grp)
         util.lock(self.orb_ctrls, ["rx","ry","sx","sy","sz"], rsidetoo = True)
 
 ### missing:

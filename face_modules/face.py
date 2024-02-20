@@ -55,8 +55,9 @@ class Face(object):
         li = cmds.sets(n = "lids")
         ch = cmds.sets(n = "cheeks")
         mo = cmds.sets(n = "mouth") # includes teeth & tongue
+        ns = cmds.sets(n = "nose")
 
-        cmds.sets([br, li, ch, mo], n = "face_ctrls")
+        cmds.sets([br, li, ch, mo, ns], n = "face_ctrls")
         
 
 if __name__ == "__main__":

@@ -317,6 +317,7 @@ class Nurbs(object):
             'brown' :   24,
             'blue'  :    6,
             'purple':    9,
+            'violet':    30,
             'sky'   :   18,
             'red'   :   13,
             'pink'  :   20,

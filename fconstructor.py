@@ -8,12 +8,18 @@ from face_proxies.proxybrows import ProxyBrows
 from face_proxies.proxyeye import ProxyEye
 from face_proxies.proxylids import ProxyLids
 from face_proxies.proxyorbitals import ProxyOrbitals
+from face_proxies.proxymouth import ProxyMouth
+from face_proxies.proxynose import ProxyNose
+from face_proxies.proxycheeks import ProxyCheeks
 
 from face_modules.face import Face
 from face_modules.brows import Brows
 from face_modules.eyes import Eyes
 from face_modules.lids import Lids
 from face_modules.orbitals import Orbitals
+from face_modules.mouth import Mouth
+from face_modules.nose import Nose
+from face_modules.cheeks import Cheeks
 
 class FaceRig(object):
     
@@ -30,8 +36,9 @@ class FaceRig(object):
         pbrows = ProxyBrows()
         plids = ProxyLids()
         porbs = ProxyOrbitals()
-        # pbrow = ProxyNeck()
-        # plips = ProxyLips()
+        pmouth = ProxyMouth()
+        pnose = ProxyNose()
+        pcheeks = ProxyCheeks()
         # pteeth = ProxyTeeth()
         # ptongue = ProxyTongue()
         
@@ -41,12 +48,15 @@ class FaceRig(object):
         pbrows.build_proxy(pface.base_prx)
         plids.build_proxy(pface.base_prx)
         porbs.build_proxy(pface.base_prx)
+        pmouth.build_proxy(pface.base_prx)
+        pnose.build_proxy(pface.base_prx)
+        pcheeks.build_proxy(pface.base_prx)
     
     def construct_rig(self):
         ### just for testing ###
         cmds.select(clear = True)
         head_jnt_test = cmds.joint(n = "head_JNT", p = (0,160,0))
-        head_ctrl_test = cmds.circle(n = "head_CTRL", nr = (0,0,1))[0]
+        head_ctrl_test = cmds.circle(n = "head_CTRL", nr = (0,0,1), r = 20)[0]
         global_ctrl_test = cmds.circle(n = "global_CTRL", r = 50)[0]
         body_ctrl_test = cmds.circle(n = "body_CTRL", r = 10)[0]
         cmds.matchTransform(head_ctrl_test, head_jnt_test, pos = True)
@@ -60,6 +70,9 @@ class FaceRig(object):
         eyes = Eyes()
         lids = Lids(tearduct = True)
         orbs = Orbitals()
+        mouth = Mouth()
+        nose = Nose()
+        cheeks = Cheeks()
         
         # build_rig(
                 # joint_socket,
@@ -68,6 +81,17 @@ class FaceRig(object):
                 # [spaces])
         
         face.setup()
+        mouth.build_rig(
+                joint_socket = head_jnt_test, 
+                ctrl_socket = head_ctrl_test)
+        nose.build_rig(
+                joint_socket = head_jnt_test, 
+                ctrl_socket = head_ctrl_test,
+                lipcorners = ["L_lipcorner_macroOut_GRP", "R_lipcorner_macroOut_GRP"])
+        cheeks.build_rig(
+                joint_socket = head_jnt_test, 
+                ctrl_socket = head_ctrl_test,
+                lipcorners = ["L_lipcorner_macroOut_GRP", "R_lipcorner_macroOut_GRP"])
         brows.build_rig(
                 joint_socket = head_jnt_test, 
                 ctrl_socket = head_ctrl_test)
@@ -124,6 +148,8 @@ def test_build(proxy = True, rig = True, bindSkin = True):
         return
     # create rig
     character.construct_rig()
+    cmds.setAttr("head_JNT.drawStyle", 2) # None
+    cmds.hide("face_PRX")
     if bindSkin == False:
         return
     body_joints = cmds.sets("fbind_joints", q = True)

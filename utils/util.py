@@ -170,7 +170,7 @@ def connect_transforms(driver, driven, t = True, r = True, s = True):
 
 def lock(transforms, 
          channels = ["tx", "ty", "tz", "rx", "ry", "rz", "sx", "sy", "sz"], 
-         hide = True, rsidetoo = False):
+         hide = True, rsidetoo = False, vis = False):
     objects = [transforms] if isinstance(transforms, str) else transforms
     if rsidetoo == True:
         r_objects = [x.replace("L_", "R_") for x in objects]
@@ -180,6 +180,10 @@ def lock(transforms,
             cmds.setAttr(f"{obj}.{channel}", lock = True, keyable = False)
             if hide == True:
                 cmds.setAttr(f"{obj}.{channel}", channelBox = False)
+            if vis == True:
+                cmds.setAttr(f"{obj}.v", lock = True, keyable = False)
+                cmds.setAttr(f"{obj}.v", channelBox = False)
+                
     
 def remap(name, inputattr, min, max, outmin = 0, outmax = 1, exp = False):
     rmpv = cmds.shadingNode("remapValue", n = name, au = True)
@@ -216,6 +220,9 @@ def pointcurve(name, nodes, degree = 1):
                 cmds.listRelatives(curve, children = True, shapes = True),
                 curve+"Shape")
     return curve
+
+def noinvscl(joint, childjoint):
+    cmds.disconnectAttr(joint+".scale", childjoint+".inverseScale")
 
 
 if __name__ == "__main__":

@@ -69,9 +69,9 @@ class Lids(object):
                 vjnt = cmds.joint(n = f"{name}_{nr+1}_tip_JNT", p = vpos, rad = rad)
                 center_jnts.append(cjnt)
                 tip_jnts.append(vjnt)
-                cmds.joint(cjnt, e = True, orientJoint = "zyx", 
-                           secondaryAxisOrient = "yup")
-                cmds.joint(vjnt, e = True, orientJoint = "none")
+                # cmds.joint(cjnt, e = True, orientJoint = "zyx", 
+                #            secondaryAxisOrient = "yup")
+                # cmds.joint(vjnt, e = True, orientJoint = "none")
             # mirror
                 cmds.parent(cjnt, "head_JNT")
                 mirr_jnt = cmds.mirrorJoint(
@@ -79,10 +79,17 @@ class Lids(object):
                     mirrorYZ = True, 
                     mirrorBehavior = True, 
                     searchReplace = ["L_", "R_"])[0]
+                center_jnts.append(mirr_jnt)
+                r_tip = cmds.listRelatives(mirr_jnt, children = True)[0]
+                tip_jnts.append(r_tip)
 ### noInvScale = True ???
-                cmds.parent(cjnt, joint_socket)
-                cmds.parent(mirr_jnt, joint_socket.replace("L_", "R_"))
-    
+                cmds.parent(cjnt, joint_socket, noInvScale = True)
+                cmds.parent(mirr_jnt, joint_socket.replace("L_", "R_"), 
+                            noInvScale = True)
+        cmds.sets(center_jnts, add = "fbind_joints")
+        cmds.sets(center_jnts, add = "fjoints")
+        cmds.sets(tip_jnts, add = "fjoints")
+        
 ##### CONTROLS #####################################################################
     def controls(self, ctrl_socket):
         # Setup
@@ -121,21 +128,6 @@ class Lids(object):
                 buff = util.buffer(sec)
                 buffers.append(buff)
         
-    # position & parent
-        # relations = {
-        #     socket :   (peye.eye,     ctrl_socket),
-        #     aim :      (peye.aim,     ctrl_socket),
-        #     aim_offset : (peye.aim,   aim),
-        #     aim_grp :  (peye.eye,     socket),
-        #     eye :      (peye.eye,     aim_grp),
-        #     off_grp :  (peye.eye,     eye),
-        #     }
-        
-        # for ctrl in list(relations):
-        #     cmds.matchTransform(ctrl, relations[ctrl][0], pos = True, rot = True)
-        #     cmds.parent(ctrl, relations[ctrl][1])
-
-        
 ####### Attributes
         util.attr_separator([self.uplid_main, self.lowlid_main])
         cmds.addAttr(self.uplid_main, longName = "curl_lashes", attributeType = "double", 
@@ -154,10 +146,11 @@ class Lids(object):
         
     
     # selection sets
-        # all_ctrls = self.lid_ctrls
-        # r_ctrls = [x.replace("L_", "R_") for x in all_ctrls]
-        # all_ctrls.extend(r_ctrls)
-        # cmds.sets(all_ctrls, add = "lids")
+        set_grp = self.lid_ctrls.copy()
+        for ctrl in set_grp:
+            if ctrl.startswith("L_"):
+                set_grp.append(ctrl.replace("L_", "R_"))
+        cmds.sets(set_grp, add = "lids")
         
     # cleanup
         util.mtx_zero(self.lid_ctrls, rsidetoo = True)
@@ -173,9 +166,11 @@ class Lids(object):
 
     # aim locators
         rad = cmds.getAttr(joint_socket+".radius")/5
+        loc_grps = []
         for s in ["L_", "R_"]:
 ### loc groups under "misc_GRP"
             loc_grp = cmds.group(n = s+"lids_aimloc_GRP", em = True)
+            loc_grps.append(loc_grp)
             locs = []
             joints = cmds.ls(s+"*lid*_tip_JNT")
             for j in joints:
@@ -309,7 +304,12 @@ class Lids(object):
                     cmds.connectAttr(target+".mid_follow", pc+f".{s}{a}lid_in_CTRLW0")
                     cmds.connectAttr(rev+".outputX", pc+f".{s}lidcorner_in_CTRLW1")
         
-    ### clean up attributes - lock & hide
+    ### clean up
+        sort = [crv_grp]
+        sort.extend(loc_grps)
+        cmds.hide(sort)
+        lids_grp = cmds.group(n = "lids_GRP", em = True, p = "fmisc_GRP")
+        cmds.parent(sort, lids_grp)
         util.lock(self.lid_ctrls, ["tz","rx","ry","sx","sy","sz"], rsidetoo = True)
 
 ### missing:

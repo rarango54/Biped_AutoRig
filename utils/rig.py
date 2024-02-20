@@ -56,7 +56,7 @@ def make_joints(proxies_list, rot_order, radius, prxorient = False, set = "joint
         joints_list.append(new_joint)
     return joints_list
 
-def mirror_ctrls(upChain_ctrls, ctrl_parent):
+def mirror_ctrls(upChain_ctrls, ctrl_parent, colors = True):
     """upChain_ctrl = list of first-of-chain or world space ctrls.
     Mirror IK and FK separately since they have different parents
     e.g. only shoulderFK, without elbowFK or handFK
@@ -73,6 +73,8 @@ def mirror_ctrls(upChain_ctrls, ctrl_parent):
             if not shapes:
                 # skip objects that have no shapes
                 continue
+            elif colors == False:
+                continue
             for s in shapes:
                 if cmds.getAttr(f"{s}.overrideColor") == 6:
                     cmds.setAttr(f"{s}.overrideColor", 13)
@@ -87,8 +89,9 @@ def mirror_ctrls(upChain_ctrls, ctrl_parent):
     cmds.delete(mirror_grp)
     return mirror_grp
             
-def sub_ctrl_vis(sub_ctrl):
-    parent_ctrl = cmds.listRelatives(sub_ctrl, parent = True)[0]
+def sub_ctrl_vis(sub_ctrl, parent_ctrl = None):
+    if not parent_ctrl:
+        parent_ctrl = cmds.listRelatives(sub_ctrl, parent = True)[0]
     sub_shapes = cmds.listRelatives(sub_ctrl, children = True, shapes = True)
     cmds.addAttr(
         parent_ctrl, longName = "sub_ctrl_vis", 

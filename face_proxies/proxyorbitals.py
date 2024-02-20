@@ -75,7 +75,7 @@ class ProxyOrbitals(object):
         for nr in range(24):
             loc = cmds.spaceLocator(n = f"orbs_vtx_{nr+1}_LOC")[0]
             cmds.setAttr(loc+"Shape.localScale", 0.1, 0.1, 0.1)
-            cmds.move(gap, 0, 0, loc)
+            cmds.move(gap, 2, 0, loc)
             cmds.parent(loc, vtx_grp)
             gap = gap + incr
         cmds.move(0, 0, -2, mov_grp, r = True)

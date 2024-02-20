@@ -55,15 +55,6 @@ class Arms(object):
                    secondaryAxisOrient = "zdown",
                    children = True,
                    zeroScaleOrient = True)
-        # cmds.parent(self.uparm_jnt, joint_socket)
-        # cmds.setAttr(f"{self.clavicle_jnt}.jointOrientY", 90)
-        # cmds.parent(self.uparm_jnt, self.clavicle_jnt)
-        # rest of arm joint orient
-        # cmds.joint(self.uparm_jnt, e = True, 
-        #            orientJoint = "zyx", 
-        #            secondaryAxisOrient = "yup", 
-        #            children = True, 
-        #            zeroScaleOrient = True)
         cmds.parent(self.clavicle_jnt, joint_socket)
         mirr_jnts = cmds.mirrorJoint(
                 self.clavicle_jnt, 

@@ -5,6 +5,8 @@ from utils import util
 from utils import rig
 
 
+h = 166
+f = 12
 
 class ProxyBrows(object):
     
@@ -14,8 +16,6 @@ class ProxyBrows(object):
         
         self.vtx_grp = "L_brow_vtx_GRP"
         
-        h = 166
-        f = 12
         self.proxy_dict = {
             "L_brow_in_PRX" : (
                 [1, h, f], "sphere", 0.4, "green", 
@@ -68,7 +68,7 @@ class ProxyBrows(object):
         for nr in range(11):
             loc = cmds.spaceLocator(n = f"brows_vtx_{nr+1}_LOC")[0]
             cmds.setAttr(loc+"Shape.localScale", 0.3, 0.3, 0.3)
-            cmds.move(gap, 0, 0, loc)
+            cmds.move(gap, h, f, loc)
             cmds.parent(loc, vtx_grp)
             gap = gap + incr
             
