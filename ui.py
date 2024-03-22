@@ -1,6 +1,7 @@
 import maya.cmds as cmds
 
 from constructor import BodyRig
+from fconstructor import FaceRig
 
 def launch_ui():
     if cmds.window("Rig_UI", exists=True):
@@ -18,19 +19,19 @@ def launch_ui():
         {side}_{components}_#_{obj type}
         e.g. L_index_3_JNT""", h=50)
     cmds.separator()
-    cmds.rowColumnLayout(p=layout, adj = True, nc=2)
+    tabs = cmds.tabLayout(innerMarginWidth=5, innerMarginHeight=5)
+### BODY TAB ###
+    body = cmds.columnLayout(p = tabs)
+    cmds.rowColumnLayout(p=body, adj = True, nc=2)
     cmds.button(label = "Proxy", w=130, c="build_proxy()")
     cmds.button(label = "Delete Proxy", w=130, c="delete_proxy()")
-    
     cmds.button(label="Rigify", w=130, c="build_rig()")
     cmds.button(label="Delete Rig", w=130, c="delete_rig()")
-    
-    cmds.rowColumnLayout(p=layout, adj = True, nc=1)
+    tools = cmds.rowColumnLayout(p=body, adj = True, nc=1)
     cmds.separator()
     cmds.text(label = "Tools", h=30)
     cmds.separator()
-    cmds.rowColumnLayout(p=layout, adj = True, nc=2)
-    
+    tool_buttons = cmds.rowColumnLayout(p=tools, adj = True, nc=2)
     cmds.button(label="Angle Reader", w=130, c="")
     cmds.button(label="Stretch Helper", w=130, c="")
     # cmds.button(label="Build Skeleton", w=130, c="")
@@ -40,26 +41,36 @@ def launch_ui():
         # build rig
         # reapply weights
     # cmds.button(label="Callisthenic Anim", w=130, c="")
+
+### FACE TAB ###
+    face = cmds.columnLayout(p = tabs)
+    cmds.text(label = "!!DO BODY RIG FIRST!!", h=30, align = "center")
+    cmds.rowColumnLayout(p=face, adj = True, nc=2)
+    cmds.button(label = "Proxy", w=130, c="build_face_proxy()")
+    cmds.button(label="Rigify", w=130, c="build_face_rig()")
     
     cmds.rowColumnLayout(p=layout, adj = True, nc=1)
     cmds.separator()
     cmds.text(label = "Finish up", h=30)
     cmds.button(label="Master", w=200, c="master()")
+    cmds.text(label = "imports references\
+              \nremoves proxies, sets, namespaces, \nvis attrs, shape history")
     
+    cmds.tabLayout(tabs, e = True, tabLabel=((body, "BODY"), (face, "FACE")) )
 
     cmds.showWindow()
 
-
 def build_proxy():
-    bod_rig = BodyRig()
-    bod_rig.construct_proxy()
+    bod_prx = BodyRig()
+    bod_prx.construct_proxy()
 
 def delete_proxy():
     cmds.delete("global_PRX")
 
 def build_rig():
-    char_rig = BodyRig()
-    char_rig.construct_rig()
+    bod_rig = BodyRig()
+    bod_rig.construct_rig()
+    
 
 def delete_rig():
     # exceptions
@@ -87,19 +98,51 @@ def delete_rig():
     cmds.delete(all_nodes)
     cmds.setAttr("global_PRX.v", 1)
     
+def build_face_proxy():
+    face_prx = FaceRig()
+    face_prx.construct_proxy()
+def build_face_rig():
+    face_rig = FaceRig()
+    face_rig.construct_rig()
+    
 def master():
-    # delete proxies
-    if cmds.objExists("global_PRX"):
-        cmds.delete("global_PRX")
-    # hide shape nodes on all anim CTRLs
+# hide shape nodes on all anim CTRLs
+# from channelbox
     allControls = cmds.ls("*_CTRL")
     for ctrl in allControls:
         shapes = cmds.listRelatives(ctrl, shapes=True)
         if shapes:
             for sh in shapes:
                 cmds.setAttr(f"{sh}.isHistoricallyInteresting", 0)
-            
-    # import all References
+# hide .vis attribute on all ctrls
+    ctrls = cmds.ls("*_CTRL")
+    for c in ctrls:
+        cmds.setAttr(f"{c}.v", lock = True, k = False, cb = False)
+# lock all tuning attrs
+    for tuner in ["BODY_TUNING", "FACE_TUNING"]:
+        if cmds.objExists(tuner):
+            attrs = cmds.listAttr(tuner, locked = False, keyable = True)
+            for attr in attrs:
+                cmds.setAttr(f"{tuner}.{attr}", lock = True)
+# delete proxies
+    if cmds.objExists("global_PRX"):
+        cmds.delete("global_PRX")
+    if cmds.objExists("face_PRX"):
+        cmds.delete("face_PRX")
+# delete irrelevant sets
+    for set in ["joints", "helper_joints", 
+                "fjoints", "fhelper_joints", ]:
+        if cmds.objExists(set):
+            cmds.delete(set)
+# unite joints under one set
+    unisets = []
+    for set in ["bind_joints", 
+                "fbind_joints", "teeth_joints", "tongue_joints"]:
+        if cmds.objExists(set):
+            unisets.append(set)
+    cmds.sets(unisets, n = "joints")
+
+# import all References
     cmds.ls(r = True)
     # get list of all top-level refs in scene
     all_ref_paths = cmds.file(q=True, reference=True) or []
@@ -115,12 +158,14 @@ def master():
                     # Only add on ones that we don't already have.
                     if new_ref_path not in all_ref_paths:  
                         all_ref_paths.append(new_ref_path)
-    # Delete namespaces
+# Delete namespaces
     def num_children(ns):
         return ns.count(':')
     defaults = ['UI', 'shared']
-    namespaces = [ns for ns in cmds.namespaceInfo(lon=True, r=True) if ns not in defaults]
-    # reverse the list, so that namespaces with more children are at the front of the list.
+    namespaces = [ns for ns in cmds.namespaceInfo(lon=True, r=True) 
+                  if ns not in defaults]
+    # reverse the list, so that namespaces with more children 
+    # are at the front of the list.
     namespaces.sort(key=num_children, reverse=True)
     for ns in namespaces:
         try:
@@ -128,13 +173,6 @@ def master():
         except RuntimeError as e:
             # namespace isn't empty, so you might not want to kill it?
             pass
-    
-    # hide visibility attribute on all ctrls
-    ctrls = cmds.ls("*_CTRL")
-    for c in ctrls:
-        cmds.setAttr(f"{c}.v", lock = True, k = False, cb = False)
-    
-    return
 
 if __name__ == "__main__":
     

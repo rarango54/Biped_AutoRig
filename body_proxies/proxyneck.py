@@ -8,7 +8,7 @@ from utils import rig
 
 class ProxyNeck(object):
     
-    def __init__(self):
+    def __init__(self, proxy_socket = None):
         
         self.module_name = "neck"
         self.proxy_dict = {
@@ -26,6 +26,9 @@ class ProxyNeck(object):
         self.neck = proxies[0]
         self.head = proxies[1]
         self.head_end = proxies[2]
+        
+        if proxy_socket:
+            self.build_proxy(proxy_socket)
 
     def build_proxy(self, proxy_socket):
         

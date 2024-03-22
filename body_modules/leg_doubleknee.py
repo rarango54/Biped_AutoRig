@@ -15,12 +15,14 @@ class Legs(object):
         self.module_name = "L_leg"
         
         self.upleg_jnt = "L_upleg_JNT"
+        self.knee_jnt = "L_knee_JNT"
         self.lowleg_jnt = "L_lowleg_JNT"
         self.foot_jnt = "L_foot_JNT"
         self.toes_jnt = "L_toes_JNT"
         self.toes_end_jnt = "L_toes_end_JNT"
         
         self.upleg_fk = "L_upleg_FK_CTRL"
+        self.knee_fk = "L_knee_FK_CTRL"
         self.lowleg_fk = "L_lowleg_FK_CTRL"
         self.foot_fk = "L_foot_FK_CTRL"
         self.toes_fk = "L_toes_FK_CTRL"
@@ -56,8 +58,8 @@ class Legs(object):
         self.heeloff_ctrl_grp = "L_toeroll_IK_heeloffset_ctrl_GRP"
         
         self.L_ik_vis = [self.foot_ik, self.polevector, 
-                         self.hipjoint_ik, self.outpiv, self.inpiv, self.heelpiv,
-                         self.toepiv, self.toes, self.ball]
+                           self.hipjoint_ik, self.outpiv, self.inpiv, self.heelpiv,
+                           self.toepiv, self.toes, self.ball]
         self.L_fk_ctrls = [self.upleg_fk, self.lowleg_fk, self.foot_fk, self.toes_fk]
         self.L_bendies = [self.upleg_b, self.knee_b, self.lowleg_b]
         self.R_ik_vis = [x.replace("L_", "R_") for x in self.L_ik_vis]
@@ -69,7 +71,7 @@ class Legs(object):
         
     def skeleton(self, joint_socket):
         pleg = ProxyLeg()
-        leg_jnts = rig.make_joints(list(pleg.proxy_dict)[:5], "zyx", 1.5)
+        leg_jnts = rig.make_joints(list(pleg.proxy_dict)[:6], "zyx", 1.5)
         foot = self.foot_jnt
         toe = self.toes_jnt
         end = self.toes_end_jnt
@@ -103,14 +105,15 @@ class Legs(object):
         ikctrl_grp = cmds.group(
                 n = "L_leg_IKctrls_GRP", empty = True, parent = "global_sub_CTRL")
         pleg = ProxyLeg()
-        fk = [self.upleg_jnt, self.lowleg_jnt, self.foot_jnt, 
+        fk = [self.upleg_jnt,self.knee_jnt, self.lowleg_jnt, self.foot_jnt, 
              self.toes_jnt, self.toes_end_jnt]
         fk_ro = "zyx"
         scl = util.distance(self.upleg_jnt, self.lowleg_jnt)/5
         
     # FK ctrls
-        dist = util.distance(self.upleg_jnt, self.lowleg_jnt)
+        dist = util.distance(self.upleg_jnt, self.knee_jnt)
         fk_upleg = Nurbs.fk_box(self.upleg_fk, scl/10, dist*0.9, "blue", fk_ro)
+        fk_knee = cmds.group(n = self.knee_fk, empty = True)
         fk_lowleg = Nurbs.fk_box(self.lowleg_fk,scl/10, dist*0.9, "blue", fk_ro)
         fk_foot = Nurbs.box(self.foot_fk, scl, scl, scl/3, "blue", fk_ro)
         fk_toes = Nurbs.box(self.toes_fk, scl, scl/1.5, scl/3, "blue", fk_ro)
@@ -127,13 +130,19 @@ class Legs(object):
         ik_hipj = Nurbs.square(self.hipjoint_ik, scl*2.5, "blue", "zxy")
         
     # bendies
-        upleg_b = Nurbs.sphere(self.upleg_b, dist/22, "sky", "zyx")
-        lowleg_b = Nurbs.sphere(self.lowleg_b, dist/22, "sky", "zyx")
-        knee_b = Nurbs.sphere(self.knee_b, dist/22, "sky", "zyx")
-        knee_buff = util.buffer(knee_b)
+        upleg_b = Nurbs.sphere(self.upleg_b, dist/12, "sky", "zyx")
+        lowleg_b = Nurbs.sphere(self.lowleg_b, dist/12, "sky", "zyx")
+        knee_b = Nurbs.sphere(self.knee_b, dist/12, "sky", "zyx")
+        # upleg_b = Nurbs.double_lolli(self.upleg_b, dist/4, "sky", "zyx")
+        # lowleg_b = Nurbs.double_lolli(self.lowleg_b, dist/4, "sky", "zyx")
+        # knee_b = Nurbs.double_lolli(self.knee_b, dist/4, "sky", "zyx")
+        # Nurbs.flip_shape(upleg_b, "-y")
+        # Nurbs.flip_shape(lowleg_b, "-y")
+        # Nurbs.flip_shape(knee_b, "-y")
             
     # switcher
         switch = Nurbs.switcher(self.switch, dist/10)
+        # Nurbs.flip_shape(switch, "-x")
         
     # see through geo like xRay
         for xray in [fk_upleg, fk_lowleg, ik_foot, upleg_b, lowleg_b, knee_b]:
@@ -157,7 +166,8 @@ class Legs(object):
     # ctrl : position & parent
         relations = {
             fk_upleg :  (self.upleg_jnt,        ctrl_socket),
-            fk_lowleg : (self.lowleg_jnt,       fk_upleg),
+            fk_knee :   (self.knee_jnt,         fk_upleg),
+            fk_lowleg : (self.lowleg_jnt,       fk_knee),
             fk_foot :   (self.foot_jnt,         fk_lowleg),
             fk_toes :   (self.toes_jnt,         fk_foot),
             ik_foot :   (self.foot_jnt,         ikctrl_grp),
@@ -166,7 +176,7 @@ class Legs(object):
             ik_pv :     (pleg.polev,            ikctrl_grp),
             upleg_b :   (self.upleg_jnt,        ikctrl_grp),
             lowleg_b :  (self.lowleg_jnt,       ikctrl_grp),
-            knee_buff:  (self.lowleg_jnt,         ikctrl_grp),
+            knee_b :    (self.knee_jnt,         ikctrl_grp),
             ik_hipj :   (self.upleg_jnt,        ctrl_socket),
             switch :    (self.foot_jnt,         ikctrl_grp),
             roll_locs_grp :  (self.toes_jnt,    ikctrl_grp),
@@ -195,44 +205,54 @@ class Legs(object):
         lowleg_pc = cmds.pointConstraint(
                 (self.lowleg_jnt, self.foot_jnt), lowleg_b, 
                 offset = (0,0,0), weight = 0.5)[0]
-        # knee_pc = cmds.pointConstraint(
-        #         (self.knee_jnt, self.lowleg_jnt), knee_b, 
-        #         offset = (0,0,0), weight = 0.5)[0]
-        cmds.delete((upleg_pc, lowleg_pc))
-    # knee bendy in middle (angle) betw upleg & lowleg_jnts
-        knee_ori = cmds.getAttr(f"{knee_buff}.rotateX")
-        knee_jori = cmds.getAttr(f"{self.lowleg_jnt}.jointOrientX")
-        cmds.setAttr(f"{knee_buff}.rotateX", (knee_ori - knee_jori/2))
+        knee_pc = cmds.pointConstraint(
+                (self.knee_jnt, self.lowleg_jnt), knee_b, 
+                offset = (0,0,0), weight = 0.5)[0]
+        cmds.delete((upleg_pc, lowleg_pc, knee_pc))
+    # add buffer to lowleg_FK_CTRL
+        kbuff = util.buffer(fk_lowleg, new_suffix = "counterRot_GRP")
     # add buffer to ik_align and knee_bendy for ankle_align attr
         # align_buff = util.buffer(ik_align)
-        
+        knee_b_buff = util.buffer(knee_b)
+        util.mtx_zero(knee_b_buff)
+
+    # knee aim targets for bendy setup
+        aim1 = cmds.group(n = "L_knee_bendy_kneeaim_GRP", em = True, parent = knee_b)
+        aim2 = cmds.group(n = "L_knee_bendy_lowlegaim_GRP", em = True, parent = knee_b)
+        cmds.matchTransform(aim1, self.knee_jnt, position = True)
+        cmds.matchTransform(aim2, self.lowleg_jnt, position = True)
+        util.mtx_zero([aim1, aim2])
+        util.lock([aim1, aim2])
     # offset switch_ctrl to side of ankle
         cmds.move(0, 0, -dist/2, switch, relative = True)
         
 ####### Attributes
         util.attr_separator([fk_upleg, ik_foot, ik_hipj, ik_pv])
-        for attr in ["ball_roll", "ball_swivel", "toes_UD", "toes_LR", 
-                     "toe_heel_roll", "in_out_roll"]:
-            cmds.addAttr(ik_foot, longName = attr, at = "double", dv = 0)
-            cmds.setAttr(f"{ik_foot}.{attr}", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "ball_roll", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.ball_roll", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "ball_swivel", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.ball_swivel", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "toes_UD", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.toes_UD", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "toes_LR", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.toes_LR", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "toe_heel_roll", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.toe_heel_roll", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "in_out_roll", attributeType = "double", 
+                     defaultValue = 0)
+        cmds.setAttr(f"{ik_foot}.in_out_roll", e = True, keyable = True)
         util.attr_separator(ik_foot, 2)
-        for attr in ["upleg_length", "lowleg_length",
-                     "up_thickX", "up_thickZ",
-                     "low_thickX", "low_thickZ"]:
-            cmds.addAttr(ik_foot, longName = attr, attributeType = "double",
-                         min = 0.05, defaultValue = 1)
-            cmds.setAttr(f"{ik_foot}.{attr}", e = True, keyable = True)
-        cmds.addAttr(ik_foot, longName = "stretch_toggle", at = "double", 
-                     min = 0, max = 1, dv = 1)
-        cmds.setAttr(ik_foot+".stretch_toggle", e = True, keyable = True)
-        # BODY TUNING
-        util.attr_separator("BODY_TUNING", name = "Legs")
-        cmds.addAttr("BODY_TUNING", longName = "knee_offset", at = "double")
-        cmds.setAttr("BODY_TUNING.knee_offset", e = True, keyable = True)
-        cmds.addAttr("BODY_TUNING", ln = "k_start_angle", at = "double", dv = 60)
-        cmds.setAttr("BODY_TUNING.k_start_angle", e = True, keyable = True)
-        cmds.addAttr("BODY_TUNING", ln = "k_end_angle", at = "double", dv = 150)
-        cmds.setAttr("BODY_TUNING.k_end_angle", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "upleg_length", attributeType = "double", 
+                     min = 0, defaultValue = 1)
+        cmds.setAttr(f"{ik_foot}.upleg_length", e = True, keyable = True)
+        cmds.addAttr(ik_foot, longName = "lowleg_length", attributeType = "double", 
+                     min = 0, defaultValue = 1)
+        cmds.setAttr(f"{ik_foot}.lowleg_length", e = True, keyable = True)
         
     # foot roll ctrls
         roll_locs = [heel_loc, out_loc, in_loc, toepiv_loc, ball_loc, toes_loc]
@@ -240,16 +260,13 @@ class Legs(object):
         for loc in roll_locs:
             offdist = util.distance(self.toes_jnt, self.toes_end_jnt)
             if loc == roll_locs[-2]: # ball
-                roll_ctrl = Nurbs.sphere(
-                    loc.replace("_LOC", "_CTRL"), scl/6, "blue", "xyz")
-                shapes = cmds.listRelatives(roll_ctrl, children = True, shapes = True)
-                for s in shapes:
-                    cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
+                roll_ctrl = Nurbs.halfcircle(
+                    loc.replace("_LOC", "_CTRL"), scl, "blue", "xyz")
             elif loc == roll_locs[-1]: # toes
                 roll_ctrl = Nurbs.halfcircle(
                     loc.replace("_LOC", "_CTRL"), scl, "blue", "xyz")
-                # Nurbs.flip_shape(roll_ctrl, "-y")
-                # cmds.move(0,0,offdist, roll_ctrl+".cv[0:5]", relative = True)
+                Nurbs.flip_shape(roll_ctrl, "-y")
+                cmds.move(0,0,offdist, roll_ctrl+".cv[0:5]", relative = True)
             else:
                 roll_ctrl = Nurbs.sphere(
                         loc.replace("_LOC", "_CTRL"), scl/8, "blue", "xyz")
@@ -271,7 +288,7 @@ class Legs(object):
         rig.mirror_ctrls([fk_upleg, ik_hipj], fkctrl_mirror_grp)
         rig.mirror_ctrls([ik_foot, ik_pv, roll_locs_grp], ikctrl_mirror_grp)
         rig.mirror_ctrls([switch], ikctrl_mirror_grp)
-        rig.mirror_ctrls([upleg_b, lowleg_b, knee_buff], ikctrl_mirror_grp)
+        rig.mirror_ctrls([upleg_b, lowleg_b, knee_b_buff], ikctrl_mirror_grp)
     
     ### Spaces
         pv_spaces = spaces.copy()
@@ -303,11 +320,12 @@ class Legs(object):
         cmds.sets(r_ctrls, add = "R_leg")
         
     # cleanup
+        l_ctrls.insert(1, fk_knee)
         l_ctrls.extend(roll_locs)
         
         util.mtx_zero(l_ctrls, rsidetoo = True)
         
-        rig.fk_sclinvert([upleg_space[0], fk_lowleg, fk_foot, fk_toes], rsidetoo = True)
+        rig.fk_sclinvert([upleg_space[0], fk_knee, fk_foot, fk_toes], rsidetoo = True)
         # for R_upleg need to rewire because of mirror_GRP betw hip and upleg ctrls
         upleg_p = fkctrl_mirror_grp.replace("_GRP", "_scl_COMP")
         cmds.connectAttr(f"{ctrl_socket}.s", f"{upleg_p}.inputScale", f = True)
@@ -318,7 +336,7 @@ class Legs(object):
         self.controls(ctrl_socket, spaces)
         
     # create IK and FK joint chains
-        L_jnts = [self.upleg_jnt, self.lowleg_jnt, 
+        L_jnts = [self.upleg_jnt, self.knee_jnt, self.lowleg_jnt, 
                   self.foot_jnt, self.toes_jnt, self.toes_end_jnt]
         L_switch = self.switch
         R_jnts = [x.replace("L_", "R_") for x in L_jnts]
@@ -327,70 +345,31 @@ class Legs(object):
         rig.ikfk_chains(R_jnts, R_switch, 1)
         rig.ikfk_ctrlvis(self.L_ik_vis, self.L_fk_ctrls, self.L_bendies, L_switch)
         rig.ikfk_ctrlvis(self.R_ik_vis, self.R_fk_ctrls, self.R_bendies, R_switch)
-        # hip ctrl vis
-        for s in ["L_", "R_"]:
-            switch = f"{s}leg_switcher_CTRL"
-            cmds.addAttr(switch, longName = "hip_ctrl", at = "double", 
-                         min = 0, max = 1, dv = 0)
-            cmds.setAttr(switch+".hip_ctrl", e = True, keyable = False, cb = True)
-            hip_mult = cmds.shadingNode(
-                    "multDoubleLinear", n = f"{s}hipctrl_vis_MULT", au = True)
-            cmds.connectAttr(switch+".hip_ctrl", hip_mult+".input1")
-            cmds.connectAttr(switch+".ikfk", hip_mult+".input2")
-            cmds.connectAttr(
-                    hip_mult+".output", f"{s}hipjoint_IK_CTRLShape.v", force = True)
         
-        # connect rotateOrders from FK ctrls to FK joints
+    # connect rotateOrders from FK ctrls to FK joints
         for s in ["L_", "R_"]:
-            ro_ctrls = [f"{s}upleg_FK_CTRL", f"{s}lowleg_FK_CTRL",
+            ro_ctrls = [f"{s}upleg_FK_CTRL", f"{s}knee_FK_CTRL", f"{s}lowleg_FK_CTRL",
                         f"{s}foot_FK_CTRL", f"{s}toes_FK_CTRL"]
             for ro_ctrl in ro_ctrls:
                 jnt = ro_ctrl.replace("_CTRL", "_JNT")
                 cmds.connectAttr(f"{ro_ctrl}.rotateOrder", f"{jnt}.rotateOrder")
+        
+    # double knee ctrl setup: -0.5rx counter on lowleg buffer + 0.5rx on knee
+        for s in ["L_", "R_"]:
+            k_mult = cmds.shadingNode(
+                    "multDoubleLinear", n = f"{s}knee_halfRot_MULT", asUtility = True)
+            k_negmult  = cmds.shadingNode(
+                    "multDoubleLinear", n = f"{s}knee_halfCounterRot_MULT", asUtility = True)
+            cmds.setAttr(f"{k_mult}.input2", 0.5)
+            cmds.setAttr(f"{k_negmult}.input2", -0.5)
+            cmds.connectAttr(f"{s}lowleg_FK_CTRL.rotateX", f"{k_mult}.input1")
+            cmds.connectAttr(f"{s}lowleg_FK_CTRL.rotateX", f"{k_negmult}.input1")
+            util.mtx_zero([f"{s}lowleg_FK_counterRot_GRP", f"{s}lowleg_FK_CTRL"])
+            cmds.connectAttr(f"{k_mult}.output", f"{s}knee_FK_CTRL.rotateX")
+            cmds.connectAttr(f"{k_negmult}.output", f"{s}lowleg_FK_counterRot_GRP.rotateX")
         # switcher & knee bendy follow deform skeleton
             util.mtx_hook(f"{s}lowleg_JNT", f"{s}leg_switcher_CTRL")
-            util.mtx_hook(f"{s}upleg_JNT", f"{s}knee_bendy_buffer_GRP")
-
-        # knee bendy: 0.5 x knee_JNT rot
-            half_rot = cmds.shadingNode(
-                        "multiplyDivide", n = f"{s}knee_bendy_halfrot_MULT", 
-                        au = True)
-            cmds.setAttr(f"{half_rot}.input2", 0.5, 0.5, 0.5)
-            cmds.connectAttr(f"{s}lowleg_JNT.rotate", f"{half_rot}.input1")
-            cmds.connectAttr(f"{half_rot}.output", f"{s}knee_bendy_buffer_GRP.rotate")
-        
-        ### OFFSET locator for bending beyond 90 degr
-            knee_b = f"{s}knee_bendy_CTRL"
-            knee_off = cmds.spaceLocator(n = f"{s}knee_offset_LOC")[0]
-            cmds.matchTransform(knee_off, knee_b, pos = True, rot = True, scl = True)
-            cmds.parent(knee_off, "misc_GRP")
-            util.mtx_hook(knee_b, knee_off)
-        # lowleg rot angle drives offset
-            off_rmv = util.remap(
-                    f"{s}knee_offset_RMV", f"{s}lowleg_JNT.rx", 
-                    min = "BODY_TUNING.k_start_angle",
-                    max = "BODY_TUNING.k_end_angle", 
-                    outmin = 0, outmax = "BODY_TUNING.knee_offset")
-            if s == "L_":
-                cmds.connectAttr(off_rmv+".outValue", knee_off+".ty")
-            else: # invert ty for right side
-                inv = cmds.shadingNode(
-                        "multDoubleLinear", n = "R_knee_offset_INV", au = True)
-                cmds.connectAttr(off_rmv+".outValue", inv+".input1")
-                cmds.setAttr(inv+".input2", -1)
-                cmds.connectAttr(inv+".output", knee_off+".ty")
-        # duplicate lowleg JNT / rename to knee JNT
-            knee_jnt = cmds.duplicate(
-                    f"{s}lowleg_JNT", parentOnly = True, n = f"{s}knee_JNT")[0]
-            rad = cmds.getAttr(knee_jnt+".radius")
-            cmds.setAttr(knee_jnt+".radius", rad*2)
-            cmds.sets(knee_jnt, add = "bind_joints")
-            cmds.orientConstraint(knee_b, knee_jnt, mo = True, w = 1,
-                                  n = f"{s}knee_ORI")
-            cmds.pointConstraint([knee_b, knee_off], knee_jnt, mo = True, w = 0.5,
-                                  n = f"{s}knee_POINT")
-            cmds.scaleConstraint(knee_b, knee_jnt, mo = True, w = 1,
-                                  n = f"{s}knee_SCL")
+            util.mtx_hook(f"{s}knee_JNT", f"{s}knee_bendy_buffer_GRP")
         
     ### FK setup
         # upleg_jnt with constraints to make space switches work later
@@ -400,13 +379,16 @@ class Legs(object):
                 f"{s}upleg_FK_CTRL", f"{s}upleg_FK_JNT", mo = True, weight = 1)
             cmds.scaleConstraint(
                 f"{s}upleg_FK_CTRL", f"{s}upleg_FK_JNT", mo = True, weight = 1)
+            cmds.connectAttr(f"{s}knee_FK_CTRL.rotate", f"{s}knee_FK_JNT.rotate")
         # half rotX for lowLeg
-            cmds.connectAttr(f"{s}lowleg_FK_CTRL.r", f"{s}lowleg_FK_JNT.r")
+            cmds.connectAttr(f"{k_mult}.output", f"{s}lowleg_FK_JNT.rotateX")
+            cmds.scaleConstraint(
+                f"{s}knee_FK_CTRL", f"{s}knee_FK_JNT", mo = True, weight = 1)
             cmds.scaleConstraint(
                 f"{s}lowleg_FK_CTRL", f"{s}lowleg_FK_JNT", mo = True, weight = 1)
         # foot
-            cmds.connectAttr(f"{s}foot_FK_CTRL.r", f"{s}foot_FK_JNT.r")
-            cmds.connectAttr(f"{s}toes_FK_CTRL.r", f"{s}toes_FK_JNT.r")
+            cmds.connectAttr(f"{s}foot_FK_CTRL.rotate", f"{s}foot_FK_JNT.rotate")
+            cmds.connectAttr(f"{s}toes_FK_CTRL.rotate", f"{s}toes_FK_JNT.rotate")
             cmds.scaleConstraint(
                 f"{s}foot_FK_CTRL", f"{s}foot_FK_JNT", mo = True, weight = 1)
             cmds.scaleConstraint(
@@ -414,8 +396,6 @@ class Legs(object):
                 
     ### IK Setup
         for s in ["L_", "R_"]:
-            # variables
-            ikfoot = f"{s}foot_IK_CTRL"
             rig.sub_ctrl_vis(f"{s}foot_IK_sub_CTRL")
             cmds.connectAttr(f"{s}leg_switcher_CTRL.ikfk",
                              f"{s}legPole_line_CRVShape.v")
@@ -454,64 +434,42 @@ class Legs(object):
             util.mtx_hook(f"{s}toewiggle_IK_LOC", ikh_toes[0])
             
     ### stretchy IK and scale setup
-        # 2 locators to enable cycle free ball roll + stretching
-            # ball_loc
-            stretch_ball = cmds.spaceLocator(n = f"{s}leg_ball_IKstretch_LOC")[0]
-            cmds.parent(stretch_ball, "misc_GRP")
-            # match transform to ball_IK_LOC
-            cmds.matchTransform(stretch_ball, f"{s}ball_IK_LOC", 
-                                pos = True, rot = True)
-            # mtx_hook foot_IK_sub_CTRL to ball_loc
-            util.mtx_hook(f"{s}foot_IK_sub_CTRL", stretch_ball)
-            # connect .r from ball_IK_LOC to ball_loc
-            cmds.connectAttr(f"{s}ball_IK_LOC.r", stretch_ball+".r")
-            # ankle_loc
-            stretch_ankle = cmds.spaceLocator(n = f"{s}leg_ankle_IKstretch_LOC")[0]
-            # match transform to ball_IK_LOC
-            cmds.matchTransform(stretch_ankle, f"{s}foot_JNT", pos = True)
-            # parent to ball_loc
-            cmds.parent(stretch_ankle, stretch_ball)
         # current length
             livelength = cmds.shadingNode(
                     "distanceBetween", n = f"{s}leg_stretchylength_DBTW", au = True)
-            cmds.connectAttr(f"{s}hipjoint_IK_CTRL.worldMatrix[0]", 
-                             f"{livelength}.inMatrix1")
-            cmds.connectAttr(stretch_ankle+".worldMatrix[0]", 
-                             f"{livelength}.inMatrix2")
-        # src_length = upleg + lowleg
-            uplength = util.distance(f"{s}upleg_JNT", f"{s}lowleg_JNT")
+            cmds.connectAttr(
+                    f"{s}hipjoint_IK_CTRL.worldMatrix[0]", f"{livelength}.inMatrix1")
+            cmds.connectAttr(
+                    f"{s}foot_IK_sub_CTRL.worldMatrix[0]", f"{livelength}.inMatrix2")
+        # src_length = upleg + lowleg + knee lengths
+            uplength = util.distance(f"{s}upleg_JNT", f"{s}knee_JNT")
             lowlength = util.distance(f"{s}lowleg_JNT", f"{s}foot_JNT")
+            kneelength = util.distance(f"{s}knee_JNT", f"{s}lowleg_JNT")
         # MD up/lowlength by attr from foot_IK_CTRL
             ikctrl_len = cmds.shadingNode(
                     "multiplyDivide", n = f"{s}leg_ikctrlattr_MULT", asUtility = True)
             cmds.setAttr(f"{ikctrl_len}.input1X", uplength)
             cmds.setAttr(f"{ikctrl_len}.input1Y", lowlength)
+            cmds.setAttr(f"{ikctrl_len}.input1Z", kneelength)
             cmds.connectAttr(f"{s}foot_IK_CTRL.upleg_length", f"{ikctrl_len}.input2X")
             cmds.connectAttr(f"{s}foot_IK_CTRL.lowleg_length", f"{ikctrl_len}.input2Y")
-        # ADD src_length = uplength + lowlength
+        # ADD src_length = uplength + lowlength + kneelength!!
             src_length = cmds.shadingNode(
                     "plusMinusAverage", n = f"{s}leg_srclength_ADD", asUtility = True)
             cmds.connectAttr(f"{ikctrl_len}.outputX", f"{src_length}.input1D[0]")
             cmds.connectAttr(f"{ikctrl_len}.outputY", f"{src_length}.input1D[1]")
+            cmds.connectAttr(f"{ikctrl_len}.outputZ", f"{src_length}.input1D[2]")
         # DIV livelength by global scale
             glob_inv = cmds.shadingNode(
                     "multiplyDivide", n = f"{s}leg_stretchyglobalScl_DIV", au = True)
             cmds.setAttr(f"{glob_inv}.operation", 2) # divide
             cmds.connectAttr(f"{livelength}.distance", f"{glob_inv}.input1Y")
             cmds.connectAttr("global_CTRL.scale", f"{glob_inv}.input2")
-        # TOGGLE blend betw orig length vs live-measured distance
-            togg = cmds.shadingNode(
-                    "blendColors", n = f"{s}leg_stretch_toggle_BLEND", au = True)
-            cmds.connectAttr(ikfoot+".stretch_toggle",
-                             togg+".blender")
-            cmds.connectAttr(glob_inv+".outputY",
-                             togg+".color1G")
-            cmds.setAttr(togg+".color2G", uplength + lowlength)
         # DIV normalize -> current length / source length
             norm = cmds.shadingNode(
                     "multiplyDivide", n = F"{s}leg_stretchy_NORM", asUtility = True)
             cmds.setAttr(f"{norm}.operation", 2) # divide
-            cmds.connectAttr(togg+".outputG", norm+".input1Y")
+            cmds.connectAttr(f"{glob_inv}.outputY", f"{norm}.input1Y")
             cmds.connectAttr(f"{src_length}.output1D", f"{norm}.input2Y")
         # CONDITION -> prevent shrinking leg by setting a minimum scale Z = 1
             con = cmds.shadingNode(
@@ -553,7 +511,40 @@ class Legs(object):
                                      f"{uniscl}.input2")
                     cmds.connectAttr(f"{uniscl}.output", f"{ik_jnt}.scale")
                     cmds.connectAttr(f"{uniscl}.output", f"{s}toes_IK_JNT.scale")
+        # IK knee sx & sz = average betw upleg & lowleg scales
+        # IK knee sy = globalScl
+            avg = cmds.shadingNode("plusMinusAverage", n = f"{s}knee_IK_scale_AVG", 
+                        asUtility = True)
+            cmds.setAttr(f"{avg}.operation", 3) # average
+            cmds.connectAttr(f"{s}upleg_IK_JNT.scale", f"{avg}.input3D[0]")
+            cmds.connectAttr(f"{s}lowleg_IK_JNT.scale", f"{avg}.input3D[1]")
+            cmds.connectAttr(f"{avg}.output3D", f"{s}knee_IK_JNT.s")
         
+        # add knee_bendy_jnt
+        for s in ["L_", "R_"]:
+            knee_b_jnt = cmds.duplicate(
+                    f"{s}knee_JNT", n = f"{s}knee_bendy_JNT", parentOnly = True)[0]
+            rad = cmds.getAttr(f"{knee_b_jnt}.radius")
+            cmds.setAttr(f"{knee_b_jnt}.radius", rad * 1.5)
+            cmds.parent(knee_b_jnt, f"{s}knee_JNT")
+            snap = cmds.pointConstraint(
+                    [f"{s}knee_JNT", f"{s}lowleg_JNT"], knee_b_jnt, 
+                    mo = False, weight = 1)
+            cmds.delete(snap)
+            cmds.parentConstraint(
+                    f"{s}knee_bendy_CTRL", knee_b_jnt, mo = True, weight = 1)
+            cmds.scaleConstraint(
+                    f"{s}knee_bendy_CTRL", knee_b_jnt, mo = True, weight = 1)
+            cmds.sets(knee_b_jnt, add = "bind_joints")
+            cmds.sets(knee_b_jnt, add = "joints")
+        # & knee_pin target
+            knee_pin_grp = cmds.group(
+                    n = f"{s}knee_pin_target_GRP", em = True, parent = "misc_GRP")
+            snap2 = cmds.pointConstraint(
+                    [f"{s}knee_JNT", f"{s}lowleg_JNT"], knee_pin_grp, 
+                    mo = False, weight = 1)
+            cmds.delete(snap2)
+            util.mtx_hook(f"{s}knee_JNT", knee_pin_grp)
             
     # ankle align
         for s in ["L_", "R_"]:
@@ -567,31 +558,33 @@ class Legs(object):
             #     cmds.connectAttr(f"{s}foot_IK_CTRL.ankle_align", sh+".v")
     # knee pin
             rig.spaceblend(
-                    f"{s}lowleg_JNT", f"{s}leg_polevector_IK_CTRL", 
+                    f"{s}knee_pin_target_GRP", f"{s}leg_polevector_IK_CTRL", 
                     f"{s}knee_bendy_buffer_GRP",
                     f"{s}leg_polevector_IK_CTRL", "pin_knee", t_only = True)
+    
+###### missing:
+    # thickness ctrl (with falloffs?
     
     ### Bendies
         for s in ["L_", "R_"]:
             upax = "x" if s == "L_" else "-x"
-            upleg_bendy_joints = bendy.setup(
+            bendy.setup(
                 mod_name = f"{s}upleg", 
                 base_driver = f"{s}upleg_JNT", 
-                head_driver = f"{s}lowleg_JNT",
+                head_driver = f"{s}knee_JNT",
                 forwardaxis = "y", 
                 upaxis = upax,
                 mid_ctrl = f"{s}upleg_bendy_CTRL", 
                 twistInvDriver = "hip_JNT",
                 elbow_bendy_ctrl = f"{s}knee_bendy_CTRL")
-            lowleg_bendy_joints = bendy.setup(
+            bendy.setup(
                 mod_name = f"{s}lowleg", 
                 base_driver = f"{s}lowleg_JNT", 
                 head_driver = f"{s}foot_JNT",
                 forwardaxis = "y", 
                 upaxis = upax,
                 mid_ctrl = f"{s}lowleg_bendy_CTRL",
-                elbow_bendy_ctrl = f"{s}knee_bendy_CTRL",
-                offset_driver = f"{s}knee_offset_LOC")
+                elbow_bendy_ctrl = f"{s}knee_bendy_CTRL")
         # to avoid unnatural lowleg twisting
             cmds.delete(f"{s}lowleg_twist_driverMtx_MM")
             util.mtx_hook(f"{s}lowleg_JNT", f"{s}lowleg_endTwist_LOC", force = True)
@@ -599,78 +592,20 @@ class Legs(object):
         # added aim targets matching knee & lowleg jnt pivots under knee_bendy_ctrl
             bendy.aim(
                 bendy = f"{s}upleg_bendy_CTRL",
-                aimtarget = f"{s}knee_bendy_CTRL", 
+                aimtarget = f"{s}knee_bendy_kneeaim_GRP", 
                 uptarget = f"{s}upleg_baseTwist_LOC",
                 root = f"{s}upleg_JNT",
                 vaim = (0,1,0),
-                vup = (1,0,0),
-                scldriver = f"{s}upleg_JNT")
+                vup = (1,0,0))
             bendy.aim(
                 bendy = f"{s}lowleg_bendy_CTRL",
-                aimtarget = f"{s}knee_offset_LOC", 
+                aimtarget = f"{s}knee_bendy_lowlegaim_GRP", 
                 uptarget = f"{s}lowleg_endTwist_LOC",
                 root = f"{s}foot_JNT",
                 vaim = (0,-1,0),
                 vup = (1,0,0),
                 scldriver = f"{s}lowleg_JNT")
-        
-    ### THICKNESS setup for bendies
-            upthick = bendy.chainthick(f"{s}upleg_thickness_channels_GRP", 
-                                       ["sx", "sz"], upleg_bendy_joints)
-            lowthick = bendy.chainthick(f"{s}lowleg_thickness_channels_GRP", 
-                                        ["sx", "sz"], lowleg_bendy_joints)
-            cmds.parent([upthick, lowthick], "misc_GRP")
-            switcher = f"{s}leg_switcher_CTRL"
-        # UP START
-        # ikfk blend betw upleg_FK_CTRL & foot_IK_CTRL attrs
-            upstartblend = cmds.shadingNode(
-                    "blendColors", n = f"{s}upleg_thickstart_ikfk_BLEND", au = True)
-            cmds.connectAttr(switcher+".ikfk", upstartblend+".blender")
-            cmds.connectAttr(f"{s}foot_IK_CTRL.up_thickX", upstartblend+".color1R")
-            cmds.connectAttr(f"{s}foot_IK_CTRL.up_thickZ", upstartblend+".color1B")
-            cmds.connectAttr(f"{s}upleg_FK_CTRL.s", upstartblend+".color2")
-            cmds.connectAttr(upstartblend+".outputR", upthick+".start_sx")
-            cmds.connectAttr(upstartblend+".outputB", upthick+".start_sz")
-        # UP MID
-        # upleg bendy into upthick.mid (no global scl)
-            cmds.connectAttr(f"{s}upleg_bendy_CTRL.sx", upthick+".mid_sx")
-            cmds.connectAttr(f"{s}upleg_bendy_CTRL.sz", upthick+".mid_sz")
-        # KNEE = UP END & LOW START
-        # ikfk blend betw lowleg_FK_CTRL & foot_IK_CTRL attrs
-            upendblend = cmds.shadingNode(
-                    "blendColors", n = f"{s}upleg_thickend_ikfk_BLEND", au = True)
-            cmds.connectAttr(switcher+".ikfk", upendblend+".blender")
-            cmds.connectAttr(f"{s}foot_IK_CTRL.low_thickX", upendblend+".color1R")
-            cmds.connectAttr(f"{s}foot_IK_CTRL.low_thickZ", upendblend+".color1B")
-            cmds.connectAttr(f"{s}lowleg_FK_CTRL.s", upendblend+".color2")
-            # mult with knee bendy scl
-            kneethick = cmds.shadingNode("multiplyDivide", 
-                                            n = f"{s}knee_thick_MULT", 
-                                            au = True)
-            cmds.connectAttr(upendblend+".output", kneethick+".input1")
-            cmds.connectAttr(f"{s}knee_bendy_CTRL.s", kneethick+".input2")
-            # into upthick node
-            cmds.connectAttr(kneethick+".outputX", upthick+".end_sx")
-            cmds.connectAttr(kneethick+".outputZ", upthick+".end_sz")
-            # also into lowthick.start
-            cmds.connectAttr(kneethick+".outputX", lowthick+".start_sx")
-            cmds.connectAttr(kneethick+".outputZ", lowthick+".start_sz")
             
-        # LOW MID
-        # lowleg bendy into lowthick.mid
-            cmds.connectAttr(f"{s}lowleg_bendy_CTRL.sx", lowthick+".mid_sx")
-            cmds.connectAttr(f"{s}lowleg_bendy_CTRL.sy", lowthick+".mid_sz")
-            
-        # LOW END
-        # blend betw foot_FK_CTRL & foot_IK_CTRL
-            lowendblend = cmds.shadingNode(
-                    "blendColors", n = f"{s}lowleg_thickend_ikfk_BLEND", au = True)
-            cmds.connectAttr(switcher+".ikfk", lowendblend+".blender")
-            cmds.connectAttr(f"{s}foot_IK_CTRL.s", lowendblend+".color1")
-            cmds.connectAttr(f"{s}foot_FK_CTRL.s", lowendblend+".color2")
-            cmds.connectAttr(lowendblend+".outputR", lowthick+".end_sx")
-            cmds.connectAttr(lowendblend+".outputB", lowthick+".end_sz")
-        
     ### Shoe Offset Setup
         cmds.addAttr(
             "BODY_TUNING", longName = "shoes_heel_offset",
@@ -710,6 +645,7 @@ class Legs(object):
         
         # hidden DRIVER setup for heel height offset from shoes
         # ankle rx + ball ty & tz as inputs for locs and ctrls to adjust accordingly
+#### need global scale??
         ankle = cmds.spaceLocator(n = "ankle_driver_LOC")[0]
         ball = cmds.spaceLocator(n = "ball_driver_LOC")[0]
         heeloff_grp = cmds.group(
@@ -811,23 +747,17 @@ class Legs(object):
     ### clean up attributes - lock & hide
         util.lock(self.switch, rsidetoo = True)
         util.lock(self.lowleg_fk, ["tx","ty","tz","ry","rz"], rsidetoo = True)
-        util.lock([self.foot_fk, self.toes_fk], 
+        util.lock([self.knee_fk, self.foot_fk, self.toes_fk], 
                   ["tx","ty","tz"], rsidetoo = True)
         util.lock([self.inpiv, self.outpiv, self.heelpiv, self.toepiv, self.ball, 
                   self.toes], ["sx","sy","sz"], rsidetoo = True)
         util.lock(self.polevector, ["rx","ry","rz","sx","sy","sz"], rsidetoo = True)
         util.lock(self.hipjoint_ik, ["sx","sz"], rsidetoo = True)
         # util.lock(self.foot_align, ["tx","ty","tz","sx","sy","sz"], rsidetoo = True)
-        util.lock([self.upleg_b, self.lowleg_b], ["ry"], rsidetoo = True)
-        util.lock(self.knee_b, ["rx","rz","sy"], rsidetoo = True)
-        # only lock but not hide translation on pivot ctrls
-        util.lock([self.inpiv, self.outpiv, self.heelpiv, self.toepiv, self.ball, 
-                  self.toes], ["tx","ty","tz"], hide = False, vis = True, rsidetoo = True)
-
+        
     # hide IK & FK joint chains
         for s in ["L_", "R_"]:
             cmds.hide(f"{s}upleg_FK_JNT", f"{s}upleg_IK_JNT")
-            cmds.hide(f"{s}roll_locs_GRP")
         
 
 if __name__ == "__main__":

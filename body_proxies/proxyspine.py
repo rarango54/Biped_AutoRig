@@ -8,7 +8,7 @@ from utils import rig
 
 class ProxySpine(object):
     
-    def __init__(self):
+    def __init__(self, build = False):
         
         # self.char_height = char_height
         
@@ -43,6 +43,10 @@ class ProxySpine(object):
         }
         self.proxies = list(self.proxy_dict)
         self.ribcage = self.proxies[7]
+        
+        if build == True:
+            self.build_base()
+            self.build_proxy(self.base_prx)
         
     def build_base(self):
         global_prx = Nurbs.double_circle(self.base_prx, 50)

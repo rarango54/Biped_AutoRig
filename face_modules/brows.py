@@ -6,10 +6,12 @@ from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 
+JNT_RAD = 0.5
+LOC_S = 0.2
+
 class Brows(object):
     
-    def __init__(self):
-
+    def __init__(self, joint_socket, ctrl_socket):
         self.module_name = "brows"
         
         self.center_jnt = "brows_center_JNT"
@@ -26,18 +28,18 @@ class Brows(object):
                           self.banchor, self.bmain]
         
         self.brow_crv_jnts = []
+        
+        self.build_rig(joint_socket, ctrl_socket)
     
     def skeleton(self, joint_socket):
         pbrows = ProxyBrows()
         brow_vtx = cmds.listRelatives(pbrows.vtx_grp, c = True, typ = "transform")
-        # setup
-        rad = cmds.getAttr(joint_socket+".radius")/4
     ### joints
         joints = []
         for nr, v in enumerate(brow_vtx):
             cmds.select(clear = True)
             pos = cmds.xform(v, q = True, t = True, ws = True)
-            jnt = cmds.joint(n = f"L_brow_{nr+1}_JNT", p = pos, rad = rad)
+            jnt = cmds.joint(n = f"L_brow_{nr+1}_JNT", p = pos, rad = JNT_RAD)
             self.brow_crv_jnts.append(jnt)
             joints.append(jnt)
             # cmds.joint(jnt, e = True, orientJoint = "zyx", 
@@ -52,7 +54,7 @@ class Brows(object):
             joints.append(mirr_jnt)
         
         cmds.select(clear = True)
-        mid = cmds.joint(n = self.center_jnt, rad = rad*2.5)
+        mid = cmds.joint(n = self.center_jnt, rad = JNT_RAD*1.5)
         cmds.parent(mid, joint_socket, noInvScale = True)
         cmds.matchTransform(mid, self.brow_crv_jnts[0], py = True, pz = True)
 
@@ -82,7 +84,6 @@ class Brows(object):
             cmds.move(0, 0, size/2, c+".cv[0:7]", r = True, localSpace = True)
         
     # position & parent
-### double transforms? 
 ### better to remap connect main to in & out?
         relations = {
             b_main :   (pbrows.bmain,   ctrl_grp),
@@ -93,11 +94,9 @@ class Brows(object):
             b_end :    (pbrows.bend,    ctrl_grp),
             b_anchor : (pbrows.banchor, ctrl_grp),
             }
-        
         for ctrl in list(relations):
             cmds.matchTransform(ctrl, relations[ctrl][0], pos = True, rot = True)
             cmds.parent(ctrl, relations[ctrl][1])
-
     # buffer grps for 2ndary ctrls
         buffers = []
         for sec in [b_curr, b_mid, b_end]:
@@ -105,11 +104,11 @@ class Brows(object):
             buffers.append(buff)
         
 ####### Attributes
-        # util.attr_separator([x, y, z])
-        for c in self.brow_ctrls:
-            cmds.addAttr(c, longName = "Z", attributeType = "double", 
-                         defaultValue = 0)
-            cmds.setAttr(c+".Z", e = True, keyable = True)
+### not RUMBA friendly :'(
+        # for c in self.brow_ctrls:
+        #     cmds.addAttr(c, longName = "Z", attributeType = "double", 
+        #                  defaultValue = 0)
+        #     cmds.setAttr(c+".Z", e = True, keyable = True)
         
     ### R_ctrls & Mirroring
         mirr_grp = cmds.group(
@@ -143,10 +142,9 @@ class Brows(object):
             loc_grps.append(loc_grp)
             joints = cmds.ls(s+"brow_*_JNT")
             for j in joints:
-                rad = cmds.getAttr(j+".radius")/2
                 loc = cmds.spaceLocator(n = j.replace("_JNT", "_LOC"))[0]
                 locs.append(loc)
-                cmds.setAttr(loc+".localScale", rad, rad, rad)
+                cmds.setAttr(loc+".localScale", LOC_S, LOC_S, LOC_S)
                 cmds.matchTransform(loc, j, pos = True)
                 cmds.parent(loc, loc_grp)
         # point constraints
@@ -250,15 +248,15 @@ class Brows(object):
     ### clean up
         sort = [crv_grp]
         sort.extend(loc_grps)
-        cmds.hide(sort)
         brows_grp = cmds.group(n = "brows_GRP", em = True, p = "fmisc_GRP")
         cmds.parent(sort, brows_grp)
-        for ctrl in self.brow_ctrls:
-            mult = cmds.shadingNode(
-                    "multDoubleLinear", n = ctrl.replace("CTRL", "zattr_MULT"), au = True)
-            cmds.setAttr(mult+".input2", 0.1)
-            cmds.connectAttr(ctrl+".Z", mult+".input1")
-            cmds.connectAttr(mult+".output", ctrl+".tz")
+### not RUMBA firendly :'(
+        # for ctrl in self.brow_ctrls:
+        #     mult = cmds.shadingNode(
+        #             "multDoubleLinear", n = ctrl.replace("CTRL", "zattr_MULT"), au = True)
+        #     cmds.setAttr(mult+".input2", 0.1)
+        #     cmds.connectAttr(ctrl+".Z", mult+".input1")
+        #     cmds.connectAttr(mult+".output", ctrl+".tz")
         util.lock(self.brow_ctrls, ["tz","rx","ry", "rz","sx","sy","sz"])
         # util.lock(self.brow_ctrls, ["tz","rx","ry","sx","sy","sz"], rsidetoo = True)
 
@@ -274,8 +272,6 @@ if __name__ == "__main__":
     hc = cmds.group(n = "head_CTRL", em = True)
     cmds.move(0, 160, 0, hc, r = True)
     
-    test = Brows()
-    test.build_rig(
-        joint_socket = "head_JNT", 
-        ctrl_socket = "head_CTRL")
+    test = Brows(joint_socket = "head_JNT", 
+                 ctrl_socket = "head_CTRL")
     pass

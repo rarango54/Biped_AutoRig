@@ -11,6 +11,8 @@ from face_proxies.proxyorbitals import ProxyOrbitals
 from face_proxies.proxymouth import ProxyMouth
 from face_proxies.proxynose import ProxyNose
 from face_proxies.proxycheeks import ProxyCheeks
+from face_proxies.proxyteeth import ProxyTeeth
+from face_proxies.proxytongue import ProxyTongue
 
 from face_modules.face import Face
 from face_modules.brows import Brows
@@ -20,6 +22,8 @@ from face_modules.orbitals import Orbitals
 from face_modules.mouth import Mouth
 from face_modules.nose import Nose
 from face_modules.cheeks import Cheeks
+from face_modules.teeth import Teeth
+from face_modules.tongue import Tongue
 
 class FaceRig(object):
     
@@ -39,8 +43,8 @@ class FaceRig(object):
         pmouth = ProxyMouth()
         pnose = ProxyNose()
         pcheeks = ProxyCheeks()
-        # pteeth = ProxyTeeth()
-        # ptongue = ProxyTongue()
+        pteeth = ProxyTeeth()
+        ptongue = ProxyTongue()
         
         # pmodule.build_proxy(pface.base_prx)
         pface.build_base()
@@ -51,66 +55,52 @@ class FaceRig(object):
         pmouth.build_proxy(pface.base_prx)
         pnose.build_proxy(pface.base_prx)
         pcheeks.build_proxy(pface.base_prx)
+        pteeth.build_proxy(pface.base_prx)
+        ptongue.build_proxy(pface.base_prx)
     
     def construct_rig(self):
-        ### just for testing ###
-        cmds.select(clear = True)
-        head_jnt_test = cmds.joint(n = "head_JNT", p = (0,160,0))
-        head_ctrl_test = cmds.circle(n = "head_CTRL", nr = (0,0,1), r = 20)[0]
-        global_ctrl_test = cmds.circle(n = "global_CTRL", r = 50)[0]
-        body_ctrl_test = cmds.circle(n = "body_CTRL", r = 10)[0]
-        cmds.matchTransform(head_ctrl_test, head_jnt_test, pos = True)
-        cmds.move(0, 100, 0, body_ctrl_test)
-        cmds.parent(head_ctrl_test, body_ctrl_test)
-        cmds.parent(body_ctrl_test, global_ctrl_test)
+        face = Face(rignode = "rig_GRP",
+                    joint_socket = "head_JNT",
+                    ctrl_socket = "head_sub_CTRL")
         
-        # module = Module()
-        face = Face()
-        brows = Brows()
-        eyes = Eyes()
-        lids = Lids(tearduct = True)
-        orbs = Orbitals()
-        mouth = Mouth()
-        nose = Nose()
-        cheeks = Cheeks()
+        mouth = Mouth(joint_socket = face.joint_socket, 
+                      ctrl_socket = face.ctrls_grp)
         
-        # build_rig(
-                # joint_socket,
-                # ctrl_socket, 
-                # ik_ctrlparent, (opt.)
-                # [spaces])
+        eyes = Eyes(joint_socket = face.joint_socket, 
+                    ctrl_socket = face.ctrls_grp, 
+                    spaces = ["head_sub_CTRL", "body_sub_CTRL", "global_sub_CTRL"])
         
-        face.setup()
-        mouth.build_rig(
-                joint_socket = head_jnt_test, 
-                ctrl_socket = head_ctrl_test)
-        nose.build_rig(
-                joint_socket = head_jnt_test, 
-                ctrl_socket = head_ctrl_test,
-                lipcorners = ["L_lipcorner_macroOut_GRP", "R_lipcorner_macroOut_GRP"])
-        cheeks.build_rig(
-                joint_socket = head_jnt_test, 
-                ctrl_socket = head_ctrl_test,
-                lipcorners = ["L_lipcorner_macroOut_GRP", "R_lipcorner_macroOut_GRP"])
-        brows.build_rig(
-                joint_socket = head_jnt_test, 
-                ctrl_socket = head_ctrl_test)
-        eyes.build_rig(
-                joint_socket = head_jnt_test, 
-                ctrl_socket = head_ctrl_test, 
-                spaces = [head_ctrl_test, body_ctrl_test, global_ctrl_test])
-        lids.build_rig(
-                joint_socket = eyes.socket_jnt, 
-                ctrl_socket = eyes.socket)
-        orbs.build_rig(
-                joint_socket = eyes.socket_jnt, 
-                ctrl_socket = eyes.socket,
-                lidcorner_ctrls = [lids.corner_in, lids.corner_out])
+        brows = Brows(joint_socket = face.joint_socket, 
+                      ctrl_socket = face.ctrls_grp)
+        
+        lids = Lids(tearduct = True,
+                    joint_socket = eyes.socket_jnt, 
+                    ctrl_socket = eyes.socket)
+        
+        orbs = Orbitals(joint_socket = eyes.socket_jnt, 
+                        ctrl_socket = eyes.socket,
+                        lidcorner_ctrls = [lids.corner_in, lids.corner_out])
+        
+        nose = Nose(joint_socket = face.joint_socket, 
+                    ctrl_socket = face.ctrls_grp,
+                    lipcorners = ["L_lipcorner_macroOut_GRP", 
+                                  "R_lipcorner_macroOut_GRP"])
+        
+        cheeks = Cheeks(joint_socket = face.joint_socket, 
+                        ctrl_socket = face.ctrls_grp,
+                        lipcorners = ["L_lipcorner_macroOut_GRP", 
+                                      "R_lipcorner_macroOut_GRP"])
+        
+        teeth = Teeth(joint_socket = face.joint_socket, 
+                      ctrl_socket = face.ctrls_grp)
+        
+        tongue = Tongue(joint_socket = face.joint_socket, 
+                        ctrl_socket = face.ctrls_grp)
         
         pface = ProxyFace()
         cmds.hide(pface.base_prx)
-### all components which don't deform the geo directly are in "misc_GRP"
-        # cmds.hide("misc_GRP")
+    ### "fmisc" contents don't deform the geo directly
+        cmds.hide("fmisc_GRP")
 
 def test_build(proxy = True, rig = True, bindSkin = True):
     character = FaceRig()
@@ -147,6 +137,17 @@ def test_build(proxy = True, rig = True, bindSkin = True):
     if rig == False:
         return
     # create rig
+    cmds.select(clear = True)
+    head_jnt_test = cmds.joint(n = "head_JNT", p = (0,160,0))
+    head_ctrl_test = cmds.circle(n = "head_sub_CTRL", nr = (0,0,1), r = 20)[0]
+    global_ctrl_test = cmds.circle(n = "global_sub_CTRL", r = 50)[0]
+    body_ctrl_test = cmds.circle(n = "body_sub_CTRL", r = 10)[0]
+    cmds.matchTransform(head_ctrl_test, head_jnt_test, pos = True)
+    cmds.move(0, 100, 0, body_ctrl_test)
+    cmds.parent(head_ctrl_test, body_ctrl_test)
+    cmds.parent(body_ctrl_test, global_ctrl_test)
+    cmds.parentConstraint(head_ctrl_test, head_jnt_test, mo = True, w = 1)
+    cmds.scaleConstraint(head_ctrl_test, head_jnt_test, offset = (1,1,1), w = 1)
     character.construct_rig()
     cmds.setAttr("head_JNT.drawStyle", 2) # None
     cmds.hide("face_PRX")

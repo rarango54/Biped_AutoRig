@@ -15,35 +15,33 @@ class Face(object):
     sockets (connection points), parents and spaces
     """
     
-    def __init__(self):
+    def __init__(self, rignode, joint_socket, ctrl_socket):
+        self.rignode = rignode
+        self.joint_socket = joint_socket
+        self.ctrl_socket = ctrl_socket
         
-        # self.char_name = char_name
-        # self.char_height = None
-        
-        self.main_grp = "face_GRP"
-        self.skeleton_grp = "fskeleton_GRP"
+        self.main = "face_GRP"
         self.ctrls_grp = "faceCtrls_GRP"
-        self.joints_grp = "fjoints_GRP"
-        self.misc_grp = "fmisc_GRP"
+        self.misc = "fmisc_GRP"
 
-        self.root_jnt = "root_JNT"
-        
         self.tuning_panel = "FACE_TUNING"
-                
+        
+        self.setup()
         
     def setup(self):
-        if cmds.objExists(self.main_grp):
+        if cmds.objExists(self.main):
             return
         # initial outliner group hierarchy
-        cmds.group(n = self.main_grp, em = True)
-        cmds.group(n = self.tuning_panel, p = self.main_grp, em = True)
-        cmds.group(n = self.skeleton_grp, p = self.main_grp, em = True)
-        cmds.group(n = self.ctrls_grp, p = self.skeleton_grp, em = True)
-        cmds.group(n = self.joints_grp, p = self.skeleton_grp, em = True)
-        cmds.group(n = self.misc_grp, p = self.skeleton_grp, em = True)
+        cmds.group(n = self.main, p = self.rignode, em = True)
+        cmds.group(n = self.tuning_panel, p = self.rignode, em = True)
+        cmds.reorder(self.tuning_panel, front = True)
+        cmds.group(n = self.ctrls_grp, p = self.main, em = True)
+        cmds.group(n = self.misc, p = self.main, em = True)
         
-        all_grps = [self.main_grp, self.skeleton_grp, self.ctrls_grp,
-                    self.joints_grp, self.misc_grp, self.tuning_panel]
+        self.attach_ctrls()
+        
+        all_grps = [self.main, self.ctrls_grp,
+                    self.misc, self.tuning_panel]
         for node in all_grps:
             util.lock(node)
         
@@ -53,11 +51,20 @@ class Face(object):
         js = cmds.sets(n = "fjoints")
         br = cmds.sets(n = "brows")
         li = cmds.sets(n = "lids")
+        ey = cmds.sets(n = "eyes")
         ch = cmds.sets(n = "cheeks")
         mo = cmds.sets(n = "mouth") # includes teeth & tongue
         ns = cmds.sets(n = "nose")
 
-        cmds.sets([br, li, ch, mo, ns], n = "face_ctrls")
+        cmds.sets([br, li, ey, ch, mo, ns], n = "face_ctrls")
+    
+    def attach_ctrls(self):
+        cmds.matchTransform(self.ctrl_socket, self.joint_socket, pos = True)
+        util.mtx_zero(self.ctrl_socket)
+        cmds.parentConstraint(self.ctrl_socket, self.ctrls_grp,
+                              mo = True, w = 1)
+        cmds.scaleConstraint(self.ctrl_socket, self.ctrls_grp,
+                            offset = (1,1,1), w = 1)
         
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from utils import helpers
 
 class Spine(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, spaces):
         
         self.module_name = "spine"
         
@@ -38,6 +38,9 @@ class Spine(object):
         self.ribcage = "ribcage_GRP"
         
         self.chest_up_socket = "chest_up_SOCKET"
+        
+        spaces.insert(0, self.body_sub)
+        self.build_rig(joint_socket, ctrl_socket, spaces)
         
     def skeleton(self, joint_socket):
         pspine = ProxySpine()
@@ -147,24 +150,23 @@ class Spine(object):
         cmds.addAttr(
             "BODY_TUNING", longName = "lungs_sx",
             attributeType = "double", defaultValue = 0.5, min = 0, max = 1)
-        cmds.setAttr("BODY_TUNING.lungs_sx", e = True, channelBox = True)
+        cmds.setAttr("BODY_TUNING.lungs_sx", e = True, k = True, channelBox = True)
         cmds.addAttr(
             "BODY_TUNING", longName = "lungs_sz",
             attributeType = "double", defaultValue = 0.5, min = 0, max = 1)
-        cmds.setAttr("BODY_TUNING.lungs_sz", e = True, channelBox = True)
+        cmds.setAttr("BODY_TUNING.lungs_sz", e = True, k = True, channelBox = True)
         cmds.addAttr(
             "BODY_TUNING", longName = "lungs_ty",
             attributeType = "double", defaultValue = 0.3, min = 0)
-        cmds.setAttr("BODY_TUNING.lungs_ty", e = True, channelBox = True)
+        cmds.setAttr("BODY_TUNING.lungs_ty", e = True, k = True, channelBox = True)
         cmds.addAttr(
             "BODY_TUNING", longName = "lungs_rx",
             attributeType = "double", defaultValue = -1, max = 0)
-        cmds.setAttr("BODY_TUNING.lungs_rx", e = True, channelBox = True)
-        
+        cmds.setAttr("BODY_TUNING.lungs_rx", e = True, k = True, channelBox = True)
         cmds.addAttr(
             "BODY_TUNING", longName = "hip_pivot_height",
             attributeType = "double", defaultValue = 0)
-        cmds.setAttr("BODY_TUNING.hip_pivot_height", e = True, channelBox = True)
+        cmds.setAttr("BODY_TUNING.hip_pivot_height", e = True, k = True, channelBox = True)
     # connect hip_pivot_height
         cmds.connectAttr("BODY_TUNING.hip_pivot_height", f"{self.hip}.rotatePivotY")
         cmds.connectAttr("BODY_TUNING.hip_pivot_height", f"{self.hip}.scalePivotY")
@@ -242,8 +244,8 @@ class Spine(object):
         cmds.sets(spine_jnts, add = "joints")
         cmds.parent(spine_jnts[0], base_driver)
         # ikSpline curve
-        crv_points = [self.hip_jnt, spine_jnts[2], self.waist_jnt, 
-                      self.chest_jnt, self.chest_up_jnt]
+        crv_points = [self.hip_jnt, spine_jnts[1], self.waist_jnt, 
+                      self.chest_jnt, spine_jnts[-2],self.chest_up_jnt]
         curve = bendy.crv(mod_name+"_ikSpline_CRV", crv_points, 3)
         bendy.ikspline(
             mod_name = mod_name, 
@@ -255,16 +257,44 @@ class Spine(object):
             head_driver = head_driver,
             mid_ctrl = mid_ctrl,
             curve = curve)
+        # skin = f"{mod_name}_ikSpline_SKIN"
+        # # first 2 CVs driven by hip jnt
+        # cmds.skinPercent(skin, curve+".cv[1]", 
+        #                  transformValue = (f"{mod_name}_bendy_1_JNT", 1))
+        # # top 2 CVs driven by chest
+        # cmds.skinPercent(skin, curve+".cv[3]", 
+        #                  transformValue = (f"{mod_name}_bendy_3_JNT", 1))
+        # cmds.skinPercent(skin, curve+".cv[4]", 
+        #                  transformValue = (f"{mod_name}_bendy_3_JNT", 1))
+        # util.mtx_hook(self.chest_jnt, f"{mod_name}_bendy_3_JNT", force = True)
+        # unbind skin: skinCluster -e  -ub spine_ikSpline_CRVShape
         skin = f"{mod_name}_ikSpline_SKIN"
-        # first 2 CVs driven by hip jnt
+        # unbind and remake
+        cmds.skinCluster("spine_ikSpline_CRVShape", e = True, unbind = True)
+        cmds.delete([f"{mod_name}_bendy_1_JNT",
+                     f"{mod_name}_bendy_2_JNT",
+                     f"{mod_name}_bendy_3_JNT"])
+        cmds.skinCluster(
+            [self.hip_jnt, self.waist_jnt, self.chest_jnt, self.chest_up_jnt],
+            curve,
+            name = skin,
+            toSelectedBones = True,
+            bindMethod = 0,
+            skinMethod = 0,
+            normalizeWeights = 1,
+            maximumInfluences = 1)
+        cmds.skinPercent(skin, curve+".cv[0]", 
+                         transformValue = ("hip_JNT", 1))
         cmds.skinPercent(skin, curve+".cv[1]", 
-                         transformValue = (f"{mod_name}_bendy_1_JNT", 1))
-        # top 2 CVs driven by chest
+                         transformValue = ("hip_JNT", 1))
+        cmds.skinPercent(skin, curve+".cv[2]", 
+                         transformValue = ("waist_JNT", 1))
         cmds.skinPercent(skin, curve+".cv[3]", 
-                         transformValue = (f"{mod_name}_bendy_3_JNT", 1))
+                         transformValue = ("chest_JNT", 1))
         cmds.skinPercent(skin, curve+".cv[4]", 
-                         transformValue = (f"{mod_name}_bendy_3_JNT", 1))
-        util.mtx_hook(self.chest_jnt, f"{mod_name}_bendy_3_JNT", force = True)
+                         transformValue = ("chest_up_JNT", 1))
+        cmds.skinPercent(skin, curve+".cv[5]", 
+                         transformValue = ("chest_up_JNT", 1))
         
     ### parent ribcage to spine_end
         cmds.parent(self.ribcage_jnt, spine_jnts[-2])
@@ -277,21 +307,23 @@ class Spine(object):
             self.chest_up : self.chest_up_jnt,
             self.ribcage : self.ribcage_jnt}
         for ctrl in list(connections):
+            suffix = ctrl.split("_")[-1]
             jnt = connections[ctrl]
             cmds.connectAttr(f"{ctrl}.rotateOrder", f"{jnt}.rotateOrder")
-            cmds.parentConstraint(ctrl, jnt, weight = 1)
-            cmds.scaleConstraint(ctrl, jnt, offset = (1,1,1), weight = 1)
+            cmds.parentConstraint(ctrl, jnt, w = 1, n = ctrl.replace(suffix, "PC"))
+            cmds.scaleConstraint(ctrl, jnt, offset = (1,1,1), w = 1, 
+                                 n = ctrl.replace(suffix, "SCL"))
             
     ### ribcage helper setup
         socket = self.chest_up_socket
         upch_ang = helpers.anglelocs(
                 spine_jnts[-1], socket, (0,1,0), (0,0,1), (1,0,0))
-        # ribs_buff = util.buffer(self.ribcage, "spineFollow_GRP")
         ribs_buff = util.buffer(self.ribcage, "spineFollow_GRP", spine_jnts[-2])
         help_grp = util.buffer(self.ribcage, "helper_GRP")
         lungs_grp = self.ribcage
         util.mtx_zero([ribs_buff, lungs_grp, help_grp])
-        cmds.parentConstraint(spine_jnts[-2], ribs_buff, mo = True, weight = 1)
+        cmds.parentConstraint(spine_jnts[-2], ribs_buff, mo = True, weight = 1, 
+                              n = "ribcage_PC")
         # ribs_buff inherits global_scale through hierarchy
         helpers.calibrate(upch_ang, help_grp, ["tz","rx","sy"], ["rz"])
         
@@ -355,11 +387,5 @@ class Spine(object):
 
 
 if __name__ == "__main__":
-    
-    
-    test2 = Spine()
-    
-    test2.build_proxy("global_PRX")
-    test2.build_rig("root_JNT", "global_sub_CTRL", "global_sub_CTRL")
     
     pass

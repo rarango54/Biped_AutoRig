@@ -14,7 +14,7 @@ class Orbitals(object):
         # different locked axes on ctrls
         # orbital no corner ctrls (moved by lid corners)
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, lidcorner_ctrls):
 
         self.module_name = "orbitals"
         
@@ -32,7 +32,9 @@ class Orbitals(object):
         self.orb_ctrls = [self.corner_in, self.corner_out, self.uporb_in, 
                           self.uporb_main, self.uporb_out, self.loworb_in,
                           self.loworb_main, self.loworb_out]
-    
+        
+        self.build_rig(joint_socket, ctrl_socket, lidcorner_ctrls)
+        
     def skeleton(self, joint_socket):
         porbs = ProxyOrbitals()
         all_vtx = cmds.listRelatives(porbs.vtx_grp, children = True, typ = "transform")
@@ -304,7 +306,6 @@ class Orbitals(object):
     ### clean up
         sort = [crv_grp]
         sort.extend(loc_grps)
-        cmds.hide(sort)
         orbs_grp = cmds.group(n = "orbitals_GRP", em = True, p = "fmisc_GRP")
         cmds.parent(sort, orbs_grp)
         util.lock(self.orb_ctrls, ["rx","ry","sx","sy","sz"], rsidetoo = True)

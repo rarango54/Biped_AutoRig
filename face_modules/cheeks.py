@@ -8,7 +8,7 @@ from utils import rig
 
 class Cheeks(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, lipcorners):
 
         self.module_name = "cheeks"
         
@@ -25,6 +25,8 @@ class Cheeks(object):
         self.bone_buff = "L_cheek_bone_buffer_GRP"
         
         self.cheek_ctrls = [self.inner, self.main, self.bone]
+        
+        self.build_rig(joint_socket, ctrl_socket, lipcorners)
     
     def skeleton(self, joint_socket):
         pcheeks = ProxyCheeks()
@@ -56,9 +58,9 @@ class Cheeks(object):
         dist = util.distance(pcheeks.inner, pcheeks.bone)
       
     ### CTRL SHAPES
-        inner = Nurbs.sphere(self.inner, dist/10, "sky")
-        main = Nurbs.sphere(self.main, dist/6, "blue")
-        bone = Nurbs.sphere(self.bone, dist/10, "blue")
+        inner = Nurbs.sphere(self.inner, dist/15, "sky")
+        main = Nurbs.sphere(self.main, dist/9, "blue")
+        bone = Nurbs.sphere(self.bone, dist/15, "blue")
         
     # position & parent
         relations = {
@@ -77,14 +79,13 @@ class Cheeks(object):
             buffers.append(buff)
 
 ####### Attributes
-        # util.attr_separator([base, nostril])
-        # attr_dict = {
-        #     base : ["skew"],
-        #     nostril : ["flare"],}
-        # for ctrl in attr_dict.keys():
-        #     for attr in attr_dict[ctrl]:
-        #         cmds.addAttr(ctrl, longName = attr, attributeType = "double")
-        #         cmds.setAttr(f"{ctrl}.{attr}", e = True, keyable = True)
+        util.attr_separator([main])
+        attr_dict = {
+            main : ["puff"],}
+        for ctrl in attr_dict.keys():
+            for attr in attr_dict[ctrl]:
+                cmds.addAttr(ctrl, longName = attr, attributeType = "double")
+                cmds.setAttr(f"{ctrl}.{attr}", e = True, keyable = True)
         # FACE TUNING
         # attrs to control macro connection to lipcorners
         util.attr_separator("FACE_TUNING", name = "cheeks")

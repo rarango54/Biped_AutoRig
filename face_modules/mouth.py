@@ -6,12 +6,13 @@ from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 
+JNT_RAD = 1
+LOC_S = 0.2
+
 class Mouth(object):
     
-    def __init__(self):
-### attachment point for teeth in jawrig? __init__ attribute
+    def __init__(self, joint_socket, ctrl_socket):
         self.module_name = "mouth"
-        
         
         self.jaw_jnt = "jaw_JNT"
         self.mouth_jnt = "mouth_pivot_JNT"
@@ -45,14 +46,15 @@ class Mouth(object):
         self.lowsneer = "L_lowlip_sneer_CTRL"
         self.lowout = "L_lowlip_out_CTRL"
         self.lowpinch = "L_lowlip_pinch_CTRL"
+        
+        self.build_rig(joint_socket, ctrl_socket)
     
     def jawjoints(self, joint_socket):
         pmouth = ProxyMouth()
-        rad = cmds.getAttr(joint_socket+".radius")/3
         jaw_jnts = rig.make_joints(
                 proxies_list = pmouth.proxies[:3], # skip jaw ctrls
                 rot_order = "xyz", 
-                radius = rad,
+                radius = JNT_RAD,
                 set = "fjoints")
         cmds.parent(self.mouth_jnt, self.jaw_jnt, noInvScale = True)
         cmds.parent(jaw_jnts[0], joint_socket, noInvScale = True)
@@ -73,14 +75,13 @@ class Mouth(object):
         uplip_jnts = []
         lowlip_jnts = []
         corner_jnts = []
-        rad = cmds.getAttr(self.jaw_jnt+".radius")
         for loc in all_locs:
             cmds.select(clear = True)
             pos = cmds.xform(loc, q = True, t = True, ws = True)
             name = loc.replace("loop_LOC", "JNT")
             jnt = cmds.joint(
                 n = name, 
-                p = pos, rad = rad/3)
+                p = pos, rad = JNT_RAD*0.3)
             cmds.parent(jnt, self.mouth_jnt, noInvScale = True)
             if "uplip" in jnt:
                 uplip_jnts.append(jnt)
@@ -97,7 +98,7 @@ class Mouth(object):
             name = loc.replace("loop_LOC", "main_JNT")
             jnt = cmds.joint(
                 n = name, 
-                p = pos, rad = rad/1.5)
+                p = pos, rad = JNT_RAD)
             cmds.parent(jnt, self.mouth_jnt, noInvScale = True)
     # set
         set_jnts = uplip_jnts.copy()
@@ -193,10 +194,11 @@ class Mouth(object):
         cmds.parent(mouth, mdrive_buff)
         
 ####### Attributes
+### not RUMBA friendly :'(
         # Z pre separator
-        for zctrl in [lipc]:
-            cmds.addAttr(zctrl, longName = "Z", attributeType = "double")
-            cmds.setAttr(f"{zctrl}.Z", e = True, keyable = True)
+        # for zctrl in [lipc]:
+        #     cmds.addAttr(zctrl, longName = "Z", attributeType = "double")
+        #     cmds.setAttr(f"{zctrl}.Z", e = True, keyable = True)
         util.attr_separator([uplip, lowlip, mouth, lipc, jaw])
         attr_dict = {
             uplip : ["roll", "squetch"],
@@ -209,7 +211,8 @@ class Mouth(object):
                 cmds.setAttr(f"{ctrl}.{attr}", e = True, keyable = True)
         # FACE TUNING
         util.attr_separator("FACE_TUNING")
-        for faceattr in ["jaw_aim_factor", "jaw_z_follow", "jaw_y_follow"]:
+        for faceattr in ["jaw_aim_factor", "jaw_z_follow", 
+                         "jaw_y_follow", "liproll_tz"]:
             cmds.addAttr(
                 "FACE_TUNING", longName = faceattr, attributeType = "double")
             cmds.setAttr(f"FACE_TUNING.{faceattr}", e = True, keyable = True)
@@ -222,7 +225,8 @@ class Mouth(object):
                          lipctrl_mirror_grp, colors = False)
     
     # selection sets
-        set_grp = [jaw, jawnorm, mouth, 
+        set_grp = [jaw, jawnorm, mouth,
+                   lipc, lipc_off,
                    uplip, lowlip,
                    upc, ups, upo, upp,
                    lowc, lows, lowo, lowp]
@@ -284,33 +288,32 @@ class Mouth(object):
             cmds.setAttr(pc+".interpType", 2)
         self.curvedrivers("uplip")
         self.curvedrivers("lowlip")
+    ### ROTATION ###
         self.orientjoints(up_crv_jnts[1:-1])
         self.orientjoints(low_crv_jnts[1:-1])
         # corner joints orient
         for s in ["L_", "R_"]:
             ori = cmds.orientConstraint(f"{s}lipcorner_CTRL", f"{s}lipcorner_JNT", 
                                         mo = True, w = 1, n = f"{s}lipcorner_ORI")
-        
-        
+        self.rolltz("uplip")
+        self.rolltz("lowlip")
         
 ### extra joint curves for up & lowlip = seal blend targets
     # seal curve
         seal = self.seal(up_curves[2], low_curves[2]) # both highres curves
         cmds.parent(seal[0], crv_grp)
-
         
-        self.macro_out(ctrl_socket)
-    # cleanup
-        cmds.hide([crv_grp, up_pose_locs, low_pose_locs])
+        self.macro_output(ctrl_socket)
         # Z attrs
-        z_grp = [self.corner, self.corner.replace("L_", "R_")]
-        for z in z_grp:
-            mult = cmds.shadingNode(
-                    "multDoubleLinear", n = z.replace("CTRL", "zattr_MULT"), au = True)
-            cmds.setAttr(mult+".input2", 0.1)
-            cmds.connectAttr(z+".Z", mult+".input1")
-            cmds.connectAttr(mult+".output", z+".tz")
-            util.lock(z, ["tz"])
+### not RUMBA friendly :'(
+        # z_grp = [self.corner, self.corner.replace("L_", "R_")]
+        # for z in z_grp:
+        #     mult = cmds.shadingNode(
+        #             "multDoubleLinear", n = z.replace("CTRL", "zattr_MULT"), au = True)
+        #     cmds.setAttr(mult+".input2", 0.1)
+        #     cmds.connectAttr(z+".Z", mult+".input1")
+        #     cmds.connectAttr(mult+".output", z+".tz")
+        #     util.lock(z, ["tz"])
 
         util.lock(self.jaw, ["rx","ry","sx","sy","sz"]) # with scales??
         util.lock(self.mouth, ["rx","ry","sz"])
@@ -465,8 +468,10 @@ class Mouth(object):
         cmds.setAttr(con+".operation", 4) # less than 0
         cmds.connectAttr(add+".output", con+".firstTerm")
     # blend half.t with jawfollow.t (except tx)
-        for name in ["uplip", "lowlip", "R_lipcorner", "L_lipcorner"]:
+        for name in ["lowlip", "uplip", "R_lipcorner", "L_lipcorner"]:
             jawfollow = name+"_jawfollow_driver_GRP"
+            # if name == "uplip":
+            #     jawfollow = "lowlip_jawfollow_driver_GRP"
             ctrlbuff = name+"_buffer_GRP"
             blend = cmds.shadingNode(
                     "blendColors", n = name+"_jaw_squash_BLEND", au = True)
@@ -478,12 +483,14 @@ class Mouth(object):
             half = cmds.shadingNode(
                     "multiplyDivide", n = f"jaw_squash_{name}_MULT", au = True)
             cmds.setAttr(half+".input2", 0.5, 0.5, 0.5)
-            cmds.connectAttr(f"{name}_jawfollow_driver_GRP.t", half+".input1")
+            cmds.connectAttr(jawfollow+".t", half+".input1")
+            if name == "uplip":
+                half = "jaw_squash_lowlip_MULT"
             cmds.connectAttr(half+".outputY", blend+".color2G") # ty
             # cmds.connectAttr(half+".outputZ", blend+".color2B") # tz
             cmds.connectAttr(blend+".output", ctrlbuff+".t", force = True)
     
-    def macro_out(self, ctrl_socket):
+    def macro_output(self, ctrl_socket):
         """translation output to plug into macro behaviour of other modules
         e.g. nose, nostrils, cheeks, lowOrbs"""
         # list of drivers (lipcorners, uplips)
@@ -521,7 +528,6 @@ class Mouth(object):
         name needs to be e.g. "uplip_locators_CRV"
         no corner_locs for lowerlip, but curve needs to start at corners!
         return: [curve, locator_list]"""
-        size = cmds.getAttr(self.jaw_jnt+".radius")/10
         locs = []
         for jnt in jointlist:
             locname = jnt.replace("_JNT", "_pose_LOC")
@@ -530,13 +536,13 @@ class Mouth(object):
             loc = cmds.spaceLocator(n = locname)[0]
             if loc.startswith("up"):
                 color = 20 # pink
-                size  = size
+                size  = LOC_S
             elif loc.startswith("low"):
                 color = 18 # sky
-                size = size
+                size = LOC_S
             else:
                 color = 13 # red
-                size = size*2
+                size = LOC_S*2
             cmds.setAttr(loc+".localScale", size, size, size)
             cmds.setAttr(f"{loc}.overrideEnabled", 1)
             cmds.setAttr(f"{loc}.overrideColor", color)
@@ -621,11 +627,9 @@ class Mouth(object):
 
     def curvedrivers(self, name):
         """name needs to be uplip or lowlip"""
-        size = cmds.getAttr(self.jaw_jnt+".radius")/6
         lowres = name+"_lowres_CRV"
         midres = name+"_midres_CRV"
         highres = name+"_highres_CRV"
-        rad = cmds.getAttr(self.jaw_jnt+".radius")/2
         grp = cmds.group(n = name+"_curvedrivers_GRP", em = True, p = "mouth_GRP")
     ### LOWRES driving setup
         # position at lip center
@@ -637,7 +641,8 @@ class Mouth(object):
         cmds.delete(temp_pci)
         # add joint for main_lip ctrl
         cmds.select(clear = True)
-        main_jnt = cmds.joint(n = name+"_main_crvJNT", position = midpos, rad = rad*1.5)
+        main_jnt = cmds.joint(n = name+"_main_crvJNT", 
+                              position = midpos, rad = JNT_RAD)
         cmds.setAttr(main_jnt+".overrideEnabled", 1)
         cmds.setAttr(main_jnt+".overrideColor", 9) # purple like lowres curve
         cmds.parent(main_jnt, grp)
@@ -677,19 +682,23 @@ class Mouth(object):
             cmds.connectAttr(lowres+".worldSpace[0]", pci+".inputCurve")
             cmds.setAttr(pci+".parameter", param)
             loc = cmds.spaceLocator(n = f"{lowres}_{index+1}_driver_LOC")[0]
-            cmds.setAttr(loc+".localScale", size, size, size)
+            cmds.setAttr(loc+".localScale", LOC_S*2, LOC_S*2, LOC_S*2)
             cmds.setAttr(loc+".overrideEnabled", 1)
             cmds.setAttr(loc+".overrideColor", 9) # purple like lowres
             cmds.parent(loc, grp)
+        # attach loc to curve
             cmds.connectAttr(pci+".position", loc+".t")
-        # attach ctrls for each with buffer
+        # attach loc orient to ctrl
+            cmds.orientConstraint(ctrl, loc, mo = True, w = 1, 
+                                  n = loc.replace("LOC", "ctrl_ORI"))
+        # attach ctrls.t to locs with buffer
             buff = util.buffer(ctrl)
             util.mtx_zero([buff, ctrl])
             cmds.pointConstraint(loc, buff, mo = True, w = 1, 
                                  n = loc.replace("LOC", "POINT"))
-        # add joint for each
+        # add joint for each locator
             cmds.select(clear = True)
-            jnt = cmds.joint(n = ctrl.replace("CTRL", "crvJNT"), rad = rad)
+            jnt = cmds.joint(n = ctrl.replace("CTRL", "crvJNT"), rad = JNT_RAD*0.8)
             # special buffer because of R_side
             crv_jnt_buff = cmds.duplicate(ctrl, parentOnly = True, 
                                           n = jnt.replace("JNT", "buffer_GRP"))[0]
@@ -699,11 +708,9 @@ class Mouth(object):
             cmds.parent(crv_jnt_buff, loc)
             util.mtx_zero(crv_jnt_buff)
             cmds.parent(jnt, crv_jnt_buff)
-        # constrain joint to ctrl
+        # constrain joint to ctrl (orient already connected)
             cmds.connectAttr(ctrl+".t", crv_jnt_buff+".t")
             cmds.connectAttr(ctrl+".s", crv_jnt_buff+".s")
-            cmds.orientConstraint(ctrl, crv_jnt_buff, mo = True, 
-                                  w = 1, n = jnt.replace("JNT", "ORI"))
         # bind midres to joints
             midres_drive_jnts.append(jnt)
         mid_skin = cmds.skinCluster(
@@ -746,19 +753,23 @@ class Mouth(object):
             cmds.connectAttr(midres+".worldSpace[0]", pci+".inputCurve")
             cmds.setAttr(pci+".parameter", param)
             loc = cmds.spaceLocator(n = f"{midres}_{index+1}_driver_LOC")[0]
-            cmds.setAttr(loc+".localScale", size, size, size)
+            cmds.setAttr(loc+".localScale", LOC_S*2, LOC_S*2, LOC_S*2)
             cmds.setAttr(loc+".overrideEnabled", 1)
             cmds.setAttr(loc+".overrideColor", 27) # purple like lowres
             cmds.parent(loc, grp)
+        # attach loc to curve
             cmds.connectAttr(pci+".position", loc+".t")
+        # attach loc orient to ctrl
+            cmds.orientConstraint(ctrl, loc, mo = True, w = 1, 
+                                  n = loc.replace("LOC", "ctrl_ORI"))
         # attach ctrls for each with buffer
             buff = util.buffer(ctrl)
             util.mtx_zero([buff, ctrl])
             cmds.pointConstraint(loc, buff, mo = True, w = 1, 
                                  n = loc.replace("LOC", "POINT"))
-        # add joint for each
+        # add joint for each loc
             cmds.select(clear = True)
-            jnt = cmds.joint(n = ctrl.replace("CTRL", "crvJNT"), rad = rad)
+            jnt = cmds.joint(n = ctrl.replace("CTRL", "crvJNT"), rad = JNT_RAD*0.8)
             # special buffer because of R_side
             crv_jnt_buff = cmds.duplicate(ctrl, parentOnly = True, 
                                           n = jnt.replace("JNT", "buffer_GRP"))[0]
@@ -768,11 +779,9 @@ class Mouth(object):
             cmds.parent(crv_jnt_buff, loc)
             util.mtx_zero(crv_jnt_buff)
             cmds.parent(jnt, crv_jnt_buff)
-        # constrain joint to ctrl
+        # attach joint to ctrl (orient already connected)
             cmds.connectAttr(ctrl+".t", crv_jnt_buff+".t")
             cmds.connectAttr(ctrl+".s", crv_jnt_buff+".s")
-            cmds.orientConstraint(ctrl, crv_jnt_buff, mo = True, 
-                                  w = 1, n = jnt.replace("JNT", "ORI"))
         # bind highres to joints
             highres_drive_jnts.append(jnt)
         highres_drive_jnts.extend(midres_drive_jnts[2:]) # without corner_main_JNTs
@@ -833,10 +842,6 @@ class Mouth(object):
             cmds.connectAttr(pinch_mult+".output", pinch_add+".input3D[0]")
             cmds.connectAttr(pinch_ctrl+".t", pinch_add+".input3D[1]")
             cmds.connectAttr(pinch_add+".output3D", pinch_buff+".t", force = True)
-            
-            
-    # cleanup 
-        cmds.hide(grp)
 
 ### Rotations ###
     def orientjoints(self, lipjoints):
@@ -844,7 +849,7 @@ class Mouth(object):
         """
         name = lipjoints[0].split("_")[0] # uplip or lowlip prefix
         # make new group node "uplip_tuning"
-        attr_t = cmds.group(n = name+"_tuning", em = True, p = "mouth_GRP")
+        attr_t = cmds.group(n = name+"_orient_falloff_GRP", em = True, p = "mouth_GRP")
         util.lock(attr_t, vis = True)
         util.attr_separator(attr_t, "center")
 ### better place to parent than face_GRP?
@@ -896,18 +901,30 @@ class Mouth(object):
                 cmds.connectAttr(rev+".outputX", f"{ori}.{middle}W1")
         util.attr_separator(attr_t, "corner")
 ### replace joint target with group node? to work with seal?
+    
+    def rolltz(self, part):
+        """new buffer over main lip ctrl
+        connect roll output into tz"""
+        main = part+"_CTRL"
+        roll = part+"_orient_DRIVER"
+        roll_attr = main+".roll"
+        tuner = "FACE_TUNING.liproll_tz"
+        buff = util.buffer(main, "rolltz_GRP")
+### very sensitive -> add another mult for tuner to more easily control the outcome
+        # tuner * roll_attr = tz
+        mult = cmds.shadingNode("multDoubleLinear", n = part+"_rolltz_MULT", au = True)
+        cmds.connectAttr(roll_attr, mult+".input1")
+        cmds.connectAttr(tuner, mult+".input2")
+        cmds.connectAttr(mult+".output", buff+".tz")
+        return buff
 
-### jaw tuner for "openMouth" pose to make lipcorners go in a bit (squetch)
-    # drive with rx from jaw or from same setup as tz follow?
 ### seal blending setup oioiioioioi
 ### add "squetch " attr
 ### lip volume tuner by curvelength * head.sx -> drive same shape as "squetch"
 if __name__ == "__main__":
     
-    test = Mouth()
-    test.build_rig(
-        joint_socket = "head_JNT", 
-        ctrl_socket = "head_CTRL")
+    test = Mouth(joint_socket = "head_JNT", 
+                 ctrl_socket = "head_CTRL")
     cmds.hide("proxy_test_GRP")
     cmds.setAttr("head_JNT.drawStyle", 2) # None
     pass

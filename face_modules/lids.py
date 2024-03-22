@@ -14,7 +14,7 @@ class Lids(object):
         # different locked axes on ctrls
         # orbital no corner ctrls (moved by lid corners)
     
-    def __init__(self, tearduct = None):
+    def __init__(self, joint_socket, ctrl_socket, tearduct = None):
 
         self.module_name = "lid"
         
@@ -37,7 +37,9 @@ class Lids(object):
             self.uplid_tear = "L_uplid_tear_CTRL"
             self.lowlid_tear = "L_lowlid_tear_CTRL"
             self.lid_ctrls.extend([self.uplid_tear, self.lowlid_tear])
-    
+        
+        self.build_rig(joint_socket, ctrl_socket)
+        
     def skeleton(self, joint_socket):
         plids = ProxyLids()
         all_vtx = cmds.listRelatives(plids.vtx_grp, children = True, typ = "transform")
@@ -307,7 +309,6 @@ class Lids(object):
     ### clean up
         sort = [crv_grp]
         sort.extend(loc_grps)
-        cmds.hide(sort)
         lids_grp = cmds.group(n = "lids_GRP", em = True, p = "fmisc_GRP")
         cmds.parent(sort, lids_grp)
         util.lock(self.lid_ctrls, ["tz","rx","ry","sx","sy","sz"], rsidetoo = True)

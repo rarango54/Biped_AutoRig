@@ -34,7 +34,9 @@ class Base(object):
         self.global_sub = "global_sub_CTRL"
         
         self.tuning_panel = "BODY_TUNING"
-                
+        
+        self.setup()
+        self.build_rig()
         
     def setup(self):
         if cmds.objExists(self.main_grp):
@@ -110,11 +112,6 @@ class Base(object):
 
 if __name__ == "__main__":
     
-    test = Base("Apollo")
-    test.setup()
-    # test.build_proxy()
-    
-    # test.build_rig()
-    
+    test = Base()
     
     pass

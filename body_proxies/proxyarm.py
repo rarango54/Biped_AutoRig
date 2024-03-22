@@ -8,7 +8,7 @@ from utils import rig
 
 class ProxyArm(object):
     
-    def __init__(self):
+    def __init__(self, proxy_socket = None):
         
         self.module_name = "L_arm"
         height = 146
@@ -35,6 +35,9 @@ class ProxyArm(object):
         
         self.proxies = list(self.proxy_dict)
         self.hand = self.proxies[3]
+        
+        if proxy_socket:
+            self.build_proxy(proxy_socket)
 
     def build_proxy(self, proxy_socket):
         proxies = rig.make_proxies(self.proxy_dict, 

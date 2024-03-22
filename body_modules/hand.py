@@ -10,7 +10,7 @@ from utils import helpers
 
 class Hands(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket):
         
         self.module_name = "L_fingers"
         
@@ -38,8 +38,7 @@ class Hands(object):
         
         self.master = "L_fingerMaster_CTRL"
         
-        
-        
+        self.build_rig(joint_socket, ctrl_socket)
          
     def skeleton(self, joint_socket):
         phand = ProxyHand()
@@ -89,17 +88,14 @@ class Hands(object):
             # create ctrl based on distance
             if "meta" in name:
                 if "thumb" in name:
-                    ctrl = Nurbs.fk_box(name, scl/5, dist, "blue", ro)
+                    ctrl = Nurbs.fk_box(name, scl/8, dist, "blue", ro)
                     cmds.setAttr(ctrl+"Shape.alwaysDrawOnTop", 1)
                 else:
                     ctrl = Nurbs.metacarpal(name, scl, "blue", ro)
                     # ctrl = Nurbs.sphere(name, scl/3, "blue", ro)
             else:
-                ctrl = Nurbs.fk_box(name, scl/5, dist, "blue", ro)
+                ctrl = Nurbs.fk_box(name, scl/8, dist, "blue", ro)
                 cmds.setAttr(ctrl+"Shape.alwaysDrawOnTop", 1)
-                # ctrl = Nurbs.fk_box(name, scl, dist, "blue", ro)
-                # shapes = cmds.listRelatives(ctrl, children = True, shapes = True)
-                # for shp in shapes:
             # snap ctrl to joint
             cmds.matchTransform(ctrl, jnt, pos = True, rot = True)
             prev_dist = dist
@@ -168,7 +164,7 @@ class Hands(object):
             rig.fk_sclinvert(sclinv, rsidetoo = True)
 
 ###### RIGGING ####################################################################
-    def build_rig(self, joint_socket, ctrl_socket, spaces):
+    def build_rig(self, joint_socket, ctrl_socket):
         self.skeleton(joint_socket)
         self.controls(ctrl_socket)
         

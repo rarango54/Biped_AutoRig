@@ -9,7 +9,7 @@ from utils import rig
 
 class Eyes(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, spaces):
 
         self.module_name = "L_eye"
         
@@ -24,7 +24,8 @@ class Eyes(object):
         self.eye = "L_eye_CTRL"
         self.aim_grp = "L_eye_aim_GRP"
         self.off_grp = "L_eye_offset_GRP"
-
+        
+        self.build_rig(joint_socket, ctrl_socket, spaces)
                 
     def skeleton(self, joint_socket):
         peye = ProxyEye()
@@ -59,8 +60,11 @@ class Eyes(object):
     ### CTRL SHAPES
         socket = Nurbs.circle(self.socket, dist/3, "blue")
         aim = Nurbs.box(self.aim, dist*2, dist, dist/12, "yellow")
-        eye = Nurbs.circle(self.eye, ball/2, "blue")
+        eye = Nurbs.circle(self.eye, ball/3, "blue")
         aim_offset = Nurbs.circle(self.aim_offset, dist/3, "blue")
+        # shape adjusts
+        cmds.move(0,0,ball*1.2, eye+".cv[0:7]", r = True, localSpace = True)
+        cmds.move(dist*1.5,0,0, socket+".cv[0:7]", r = True)
     # aim grp
         aim_grp = cmds.group(n = self.aim_grp, em = True)
         off_grp = cmds.group(n = self.off_grp, em = True)
@@ -80,9 +84,6 @@ class Eyes(object):
             if ctrl == self.aim:
                 cmds.setAttr(ctrl+".tx", 0)
             cmds.parent(ctrl, relations[ctrl][1])
-### specific adjusts
-        cmds.move(0,0,ball*1.2, eye+".cv[0:7]", r = True)
-        cmds.move(dist*1.5,0,0, socket+".cv[0:7]", r = True)
 
         
 ####### Attributes
@@ -120,20 +121,16 @@ class Eyes(object):
         
     ### Spaces only for aim_ctrl
         rig.spaces(spaces, aim)
-        # rig.spaces(spaces, ik_pv.replace("L_", "R_"), rside = True)
     
     # selection sets (don't need for eye ctrls)
-        # l_ctrls = [clav, fk_uparm, fk_lowarm, fk_hand, 
-        #            ik_hand, ik_hand_sub, ik_align, ik_pv, ik_should, 
-        #            uparm_b, elbow_b, lowarm_b, switch]
-        # r_ctrls = [x.replace("L_", "R_") for x in l_ctrls]
-        # cmds.sets(l_ctrls, add = "L_arm")
-        # cmds.sets(r_ctrls, add = "R_arm")
+        set_grp = [socket, aim, eye, aim_offset]
+        for ctrl in set_grp:
+            if ctrl.startswith("L_"):
+                set_grp.append(ctrl.replace("L_", "R_"))
+        cmds.sets(set_grp, add = "eyes")
         
     # cleanup
         util.mtx_zero([socket, aim, aim_offset, eye, aim_grp], rsidetoo = True)
-        # util.mtx_zero(r_ctrls)
-        # rig.fk_sclinvert([uparm_space[0], fk_lowarm, fk_hand], rsidetoo = True)
         
 ###### RIGGING ####################################################################
     def build_rig(self, joint_socket, ctrl_socket, spaces):

@@ -10,7 +10,7 @@ from utils import bendy
 
 class Neck(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, spaces):
         
         self.module_name = "neck"
         
@@ -32,7 +32,7 @@ class Neck(object):
         self.head = "head_CTRL"
         self.head_sub = "head_sub_CTRL"
         
-    
+        self.build_rig(joint_socket, ctrl_socket, spaces)
         
     def skeleton(self, joint_socket):
         pneck = ProxyNeck()
@@ -49,12 +49,6 @@ class Neck(object):
         cmds.parent(self.neck_jnt, joint_socket)
         
         cmds.sets(self.head_jnt, add = "bind_joints")
-        
-        # temp jaw for better skinning during testing
-        # cmds.select(self.head_jnt)
-        # mandible = cmds.joint(n = "mandible_JNT", position = (0, 166, 8))
-        # chin = cmds.joint(n = "chin_JNT", position = (0, 164, 14))
-        # cmds.sets((mandible, chin), add = "bind_joints")
 
 ##### CONTROLS #####################################################################
     def controls(self, ctrl_socket, spaces):
@@ -62,10 +56,6 @@ class Neck(object):
         hsize = util.distance(self.head_jnt, self.head_end_jnt)
     # ctrl shapes
         neck = Nurbs.sphere(self.neck, nsize/10, "yellow", "yzx")
-        nshapes = cmds.listRelatives(neck, children = True, shapes = True)
-        for shp in nshapes:
-            cmds.setAttr(shp+".alwaysDrawOnTop", 1)
-        # neck = Nurbs.swoop_circle(self.neck, nsize/2)
         neck_sub = Nurbs.swoop_circle(self.neck_sub, nsize/2.5, "orange")
         head = Nurbs.box(self.head, hsize, hsize/6, hsize,"yellow", "xzy")
         head_sub = Nurbs.box(
@@ -88,8 +78,13 @@ class Neck(object):
             cmds.parent(ctrl, relations[ctrl][1])
     # mid neck bendy ctrl
         necklen = util.distance(self.neck_jnt, self.head_jnt)
-        bendy = Nurbs.lollipop(self.neck_b, necklen/3, "yellow")
-        Nurbs.flip_shape(bendy, "y")
+        bendy = Nurbs.sphere(self.neck_b, nsize/15, "brown")
+        for xray in [bendy, neck]:
+            shapes = cmds.listRelatives(xray, children = True, shapes = True)
+            for s in shapes:
+                cmds.setAttr(f"{s}.alwaysDrawOnTop", 1)
+        # bendy = Nurbs.lollipop(self.neck_b, necklen/3, "yellow")
+        # Nurbs.flip_shape(bendy, "y")
         cmds.matchTransform(bendy, neck)
         pointc = cmds.pointConstraint(
                 (neck, head), bendy, offset = (0,0,0), weight = 0.5)
@@ -98,6 +93,9 @@ class Neck(object):
         
 ####### Attributes
         util.attr_separator([self.neck, self.head])
+        cmds.addAttr(self.head, longName = "auto_bend", attributeType = "double", 
+                     defaultValue = 1, min = 0, max = 1)
+        cmds.setAttr(f"{self.head}.auto_bend", e = True, keyable = True)
         rig.sub_ctrl_vis(self.neck_sub)
         rig.sub_ctrl_vis(self.head_sub)
     ### Spaces
@@ -123,15 +121,7 @@ class Neck(object):
             jnt = ro_ctrl.replace("_CTRL", "_JNT")
             cmds.connectAttr(f"{ro_ctrl}.rotateOrder", f"{jnt}.rotateOrder")
         
-        # connections = {
-        #     self.neck_sub : self.neck_jnt,
-        #     self.head_sub : self.head_jnt}
-        # for ctrl in list(connections):
-        #     jnt = connections[ctrl]
-        #     cmds.parentConstraint(ctrl, jnt, weight = 1)
-        #     cmds.scaleConstraint(ctrl, jnt, offset = (1,1,1), weight = 1)
-        # cmds.pointConstraint(
-        #         self.head_sub, self.head_jnt, offset = (0,0,0), weight = 1)
+        # connect joints
         cmds.orientConstraint(
                 self.head_sub, self.head_jnt, offset = (0,0,0), weight = 1)
         cmds.scaleConstraint(
@@ -161,7 +151,7 @@ class Neck(object):
         cmds.addAttr(
             "BODY_TUNING", longName = "breath_headFollow",
             attributeType = "double", defaultValue = 0.4, min = 0, max = 1)
-        cmds.setAttr("BODY_TUNING.breath_headFollow", e = True, channelBox = True)
+        cmds.setAttr("BODY_TUNING.breath_headFollow", e = True, k = True, channelBox = True)
         # reverse the 0 to 1 range
         rev = cmds.shadingNode("reverse", n = "neck_breathHeadFollow_REV", au = True)
         cmds.connectAttr("BODY_TUNING.breath_headFollow", f"{rev}.inputY")
@@ -192,24 +182,66 @@ class Neck(object):
         cmds.connectAttr(f"{glob_mult}.outputX", f"{self.neck_jnt}.sx")
         cmds.connectAttr(f"{glob_mult}.outputZ", f"{self.neck_jnt}.sz")
         
-        bendy.setup(
+        neck_bendy_joints = bendy.setup(
                 mod_name = self.module_name, 
                 base_driver = self.neck_jnt, 
                 head_driver = self.head_jnt,
                 forwardaxis = "y", 
                 upaxis = "-z",
                 mid_ctrl = self.neck_b)
-        # attach bendy ctrl
-        util.mtx_hook(self.neck_jnt, self.neck_b)
+        bendy.aim(
+                bendy = self.neck_b,
+                aimtarget = self.head_jnt, 
+                uptarget = "neck_baseTwist_LOC",
+                root = self.neck_jnt,
+                vaim = (0,1,0),
+                vup = (0,0,-1))
+    # auto bending with head rot
+        driver = cmds.group(
+                n = "neck_autobend_DRIVER", em = True, p = "neck_bendy_buffer_GRP")
+        autobend = util.buffer(self.neck_b, "autobend_GRP")
+        cmds.parentConstraint(self.head_sub, driver, mo = True, w = 1,
+                              skipRotate = ["x", "y", "z"], skipTranslate = ["y"],
+                              n = "neck_autobend_driver_PC")
+        # toggle
+        togg = cmds.shadingNode(
+                "multiplyDivide", n = "neck_autobend_toggle_MULT", au = True)
+        weight = cmds.shadingNode(
+                "multiplyDivide", n = "neck_autobend_weight_MULT", au = True)
+        cmds.connectAttr(self.head+".auto_bend", togg+".input1X")
+        cmds.connectAttr(self.head+".auto_bend", togg+".input1Y")
+        cmds.connectAttr(self.head+".auto_bend", togg+".input1Z")
+        cmds.connectAttr(driver+".t", togg+".input2")
+        cmds.connectAttr(togg+".output", weight+".input1")
+        cmds.setAttr(weight+".input2", 0.4, 0.4, 0.4)
+        cmds.connectAttr(weight+".output", autobend+".t")
         
-        # head squetch? MD to maintain normal scale channels on ctrl
-        # neck scl shouldn't affect head
+    ### THICKNESS setup for bendies
+        thick = bendy.chainthick("neck_thickness_channels_GRP", 
+                                   ["sx", "sz"], neck_bendy_joints)
+        cmds.parent(thick, "neck_ikSpline_GRP")
+    # START
+    # neck base into thick.start
+        cmds.connectAttr("neck_CTRL.sx", thick+".start_sx")
+        cmds.connectAttr("neck_CTRL.sz", thick+".start_sz")
+    # MID
+    # neck bendy into thick.mid
+        cmds.connectAttr("neck_bendy_CTRL.sx", thick+".mid_sx")
+        cmds.connectAttr("neck_bendy_CTRL.sz", thick+".mid_sz")
+    # END
+    # head into thick.end
+        cmds.connectAttr("head_CTRL.sx", thick+".end_sx")
+        cmds.connectAttr("head_CTRL.sz", thick+".end_sz")
         
-        # mid twist from bendy_ctrl Ry possible?
+### missing:
+    # head squetch? MD to maintain normal scale channels on ctrl
+    # neck scl shouldn't affect head
+        
         
     ### clean up attributes - lock & hide
         util.lock([self.neck, self.neck_sub], ["tx","ty","tz"])
         util.lock(self.neck_sub, ["sx","sy","sz"])
+        util.lock(self.neck_b, ["ry"])
 
 
 

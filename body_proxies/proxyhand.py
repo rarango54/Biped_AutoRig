@@ -8,7 +8,7 @@ from utils import rig
 
 class ProxyHand(object):
     
-    def __init__(self):
+    def __init__(self, proxy_socket = None):
         self.module_name = "hand"
         self.proxy_dict = {
             "L_finger_meta_PRX" : (
@@ -44,6 +44,9 @@ class ProxyHand(object):
         self.onlyfinger_prxs.extend(self.ring[1:-1])
         self.onlyfinger_prxs.extend(self.pinky[1:-1])
         self.onlyfinger_prxs.extend(self.thumb[1:-1])
+        
+        if proxy_socket:
+            self.build_proxy(proxy_socket)
 
     def build_proxy(self, proxy_socket):
         hand = cmds.group(n = "hand_proxy_GRP", em = True)

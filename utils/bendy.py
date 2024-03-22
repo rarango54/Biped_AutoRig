@@ -9,7 +9,8 @@ def setup(mod_name,
           forwardaxis, upaxis,
           mid_ctrl,
           twistInvDriver = None,
-          elbow_bendy_ctrl = None):
+          elbow_bendy_ctrl = None,
+          offset_driver = None):
     """
     creates 5 jnt bendy chain betw. base & head drivers
         forward axis => tip of chain
@@ -25,8 +26,12 @@ def setup(mod_name,
     rest of components hidden -> grouped in misc, outside jnt or ctrl hierarchy
     """
     # jointchain
-    radius = cmds.joint(base_driver, q = True, radius = True)[0] * 1.5
-    rotord = cmds.joint(base_driver, q = True, roo = True)
+    if cmds.objectType(base_driver, isType = "joint"):
+        orig = base_driver
+    else:
+        orig = head_driver
+    radius = cmds.joint(orig, q = True, radius = True)[0] * 1.5
+    rotord = cmds.joint(orig, q = True, roo = True)
     ### probs a better way to determine orientation...
     oridict = {"x" : "horizontal", "-x" : "horizontal",
                "y" : "vertical", "-y" : "vertical",
@@ -56,7 +61,8 @@ def setup(mod_name,
             mid_ctrl = mid_ctrl,
             curve = curve, 
             twistInvDriver = twistInvDriver,
-            elbow_bendy_ctrl = elbow_bendy_ctrl)
+            elbow_bendy_ctrl = elbow_bendy_ctrl,
+            offset_driver = offset_driver)
     # middle needs to drive 3 center curve cvs
     skin = f"{mod_name}_ikSpline_SKIN"
     cmds.skinPercent(skin, f"{curve}.cv[1]", 
@@ -65,7 +71,7 @@ def setup(mod_name,
                      transformValue = (f"{mod_name}_bendy_2_JNT", 1))
     cmds.skinPercent(skin, f"{curve}.cv[3]", 
                      transformValue = (f"{mod_name}_bendy_2_JNT", 1))
-    return
+    return bendy_joints
 
 def jointchain(mod_name, number, start_obj, end_obj, radius, rotord, orient):
     """return -> joint_list    # parent to child"""
@@ -171,7 +177,8 @@ def ikspline(mod_name,
              mid_ctrl,
              curve,
              twistInvDriver = None,
-             elbow_bendy_ctrl = None):
+             elbow_bendy_ctrl = None,
+             offset_driver = None):
     """
     start & end jnts from bendy joint chain
     base & head drivers can be either ctrls or jnts driving the twist
@@ -188,7 +195,11 @@ def ikspline(mod_name,
     """
     # components outside joint or ctrl hierarchy
     grp = cmds.group(n = f"{mod_name}_ikSpline_GRP", em = True)
-    cmds.parent(grp, "misc_GRP")
+    if cmds.objExists("misc_GRP"):
+        cmds.parent(grp, "misc_GRP")
+    else:
+        cmds.parent(grp, "fmisc_GRP")
+        
     
     # create twist joint + ikh
     twist_grp = twist_setup(
@@ -231,7 +242,9 @@ def ikspline(mod_name,
             util.mtx_hook(base_driver, twistloc2)
     else:
         util.mtx_hook(twist_jnt, twistloc2)
-        if elbow_bendy_ctrl: # B) start twist
+        if offset_driver:
+            util.mtx_hook(offset_driver, twistloc1)
+        elif elbow_bendy_ctrl: # B) start twist
             util.mtx_hook(elbow_bendy_ctrl, twistloc1)
         else:
             util.mtx_hook(base_driver, twistloc1)
@@ -287,11 +300,12 @@ def ikspline(mod_name,
     # 3 curve driver joints
     joint_list = []
     cmds.select(clear = True)
+    rad = cmds.getAttr(start_jnt+".radius")*1.5
     for n, obj in enumerate([start_jnt, mid_ctrl, end_jnt]):
-        driverj = cmds.joint(n = f"{mod_name}_bendy_{n+1}_JNT", radius = 4)
+        driverj = cmds.joint(n = f"{mod_name}_bendy_{n+1}_JNT", radius = rad)
         cmds.matchTransform(driverj, obj, position = True)
         # orientation from first target_obj
-        cmds.matchTransform(driverj, start_jnt, rotation = True)
+        cmds.matchTransform(driverj, base_driver, rotation = True)
         cmds.makeIdentity(driverj, apply = True, rotate = True)
         joint_list.append(driverj)
         cmds.select(clear = True)
@@ -307,80 +321,27 @@ def ikspline(mod_name,
             skinMethod = 0,
             normalizeWeights = 1,
             maximumInfluences = 1)[0]
-    # connect driver joints to resp. ctrl
+    # reassign head/base driver for flipped twisting scenarios
     if elbow_bendy_ctrl and twistInvDriver:
         head_driver = elbow_bendy_ctrl
     if elbow_bendy_ctrl and twistInvDriver == None:
         base_driver = elbow_bendy_ctrl
+    if offset_driver and twistInvDriver == None:
+        base_driver = offset_driver
+    # connect driver joints to resp. ctrl
     for n, ctrl in enumerate([base_driver, mid_ctrl, head_driver]):
         cmds.parentConstraint(ctrl, joint_list[n], mo = True, weight = 1)
         cmds.scaleConstraint(ctrl, joint_list[n], mo = True, weight = 1)
-        # util.mtx_hook(ctrl, joint_list[n])
-        
-    # hide bendy components for ease of weight painting etc
-    # cmds.hide(grp)
+        # cmds.connectAttr(ctrl+".s", joint_list[n]+".s")
     
     ###### missing:
-        # return empty group node with attributes (tuning node?) 
-        # (thickness, auto-volume, base/mid/end-twists, length)
-        # then connect ctrl attrs to that
-        
-def aimmtx_con(aimtarget, uptarget, rotpivot, obj, vaim, vup, side):
-    suffix = obj.split("_")[-1]
-    bname = obj.replace(suffix, "")
-    # aim setup
-    aim_mtx = cmds.createNode("aimMatrix", n = f"{bname}AIM")
-    cmds.setAttr(aim_mtx + ".primaryInputAxis", vaim[0], vaim[1], vaim[2])
-    cmds.setAttr(aim_mtx + ".secondaryInputAxis", vup[0], vup[1], vup[2])
-    cmds.connectAttr(f"{rotpivot}.worldMatrix[0]", f"{aim_mtx}.inputMatrix")
-    cmds.connectAttr(f"{aimtarget}.worldMatrix[0]", f"{aim_mtx}.primaryTargetMatrix")
-    cmds.connectAttr(f"{uptarget}.worldMatrix[0]", f"{aim_mtx}.secondaryTargetMatrix")
-    # stretch setup
-    dist = cmds.shadingNode(
-            "distanceBetween", n = f"{bname}stretch_DBTW", asUtility = True)
-    cmds.connectAttr(f"{aimtarget}.worldMatrix[0]", f"{dist}.inMatrix1")
-    cmds.connectAttr(f"{rotpivot}.worldMatrix[0]", f"{dist}.inMatrix2")
-    orig_len = cmds.getAttr(f"{dist}.distance")
-        # MDL srclength = origlen * globalScl
-    mult = cmds.shadingNode(
-            "multDoubleLinear", n = f"{bname}stretchglobal_MULT", asUtility = True)
-    cmds.setAttr(f"{mult}.input1", orig_len)
-    cmds.connectAttr("global_CTRL.scaleY", f"{mult}.input2")
-        # MD currentlength / srclength
-    norm = cmds.shadingNode(
-            "multiplyDivide", n = f"{bname}stretch_NORM", asUtility = True)
-    cmds.setAttr(f"{norm}.operation", 2)
-    cmds.connectAttr(f"{dist}.distance", f"{norm}.input1X")
-    cmds.connectAttr(f"{mult}.output", f"{norm}.input2X")
-        # compose mtx
-    comp_mtx = cmds.createNode("composeMatrix", n = f"{bname}stretch_MTX")
-    if vaim[0] != 0:
-        cmds.connectAttr(f"{norm}.outputX", f"{comp_mtx}.inputScaleX")
-    if vaim[1] != 0:
-        cmds.connectAttr(f"{norm}.outputX", f"{comp_mtx}.inputScaleY")
-    if vaim[2] != 0:
-        cmds.connectAttr(f"{norm}.outputX", f"{comp_mtx}.inputScaleZ")
-    # offset = obj(world) * rotpivot(worldInv)
-    obj_w = om2.MMatrix(cmds.getAttr(f"{obj}.worldMatrix[0]"))
-    rot_wInv = om2.MMatrix(cmds.getAttr(f"{rotpivot}.worldInverseMatrix[0]"))
-    scalespace = om2.MMatrix(cmds.getAttr("global_CTRL.worldMatrix[0]"))
-    scalespace.setElement(0, 0, -1)
-    offset = obj_w * rot_wInv * scalespace if side else obj_w * rot_wInv
-    # Final OPM = stretch * offset * aim * invGlobalScl * scalespace
-    mult_mtx = cmds.shadingNode(
-            "multMatrix", n = obj.replace(suffix, "MM"), asUtility = True)
-    cmds.setAttr(f"{mult_mtx}.matrixIn[0]", offset, type = "matrix")
-    cmds.connectAttr(f"{comp_mtx}.outputMatrix", f"{mult_mtx}.matrixIn[1]")
-    cmds.connectAttr(f"{aim_mtx}.outputMatrix", f"{mult_mtx}.matrixIn[2]")
-    cmds.connectAttr("global_CTRL.inverseMatrix", f"{mult_mtx}.matrixIn[3]")
-    if side == "R_":
-        cmds.setAttr(f"{mult_mtx}.matrixIn[4]", scalespace, type = "matrix")
-    cmds.connectAttr(f"{mult_mtx}.matrixSum", f"{obj}.offsetParentMatrix")
+        # base/mid/end-twists ?
     
 def aim(bendy, aimtarget, uptarget, root, vaim, vup, scldriver = None):
-    """scldriver only for reverse aiming (lowarm & lowleg)"""
-    suffix = bendy.split("_")[0]
-    name = bendy.replace(suffix, "")
+    """scldriver only for reverse aiming (lowarm & lowleg)
+    makes a buffer group and stretchy behaviour between 2 targets"""
+    suffix = bendy.split("_")[-1]
+    name = bendy.replace("_"+suffix, "")
     bendy_buff = util.buffer(bendy)
     util.mtx_zero([bendy_buff, bendy])
     cmds.pointConstraint(
@@ -390,6 +351,7 @@ def aim(bendy, aimtarget, uptarget, root, vaim, vup, scldriver = None):
             aimtarget, bendy_buff, 
             n = f"{name}_AIM", aimVector = vaim, upVector = vup,
             worldUpObject = uptarget, worldUpType = 1)
+    # stretching setup
     dist = cmds.shadingNode(
             "distanceBetween", n = f"{name}_stretch_DBTW", 
             asUtility = True)
@@ -407,13 +369,22 @@ def aim(bendy, aimtarget, uptarget, root, vaim, vup, scldriver = None):
             "multiplyDivide", n = f"{name}_globalScl_DIV", 
             asUtility = True)
     cmds.setAttr(f"{glob}.operation", 2) # divide
-    cmds.connectAttr(f"{norm}.outputX", f"{glob}.input1Z")
+    # scale axes based on vaim
+    # last element in axis list is for the stretch axis, others for thickness
+    if vaim in ((0,0,1), (0,0,-1)):
+        axis = ["sx","sy", "input1X","input1Y", "input1Z"]
+    elif vaim in ((0,1,0), (0,-1,0)):
+        axis = ["sx","sz", "input1X","input1Z", "input1Y"]
+    elif vaim in ((1,0,0), (-1,0,0)):
+        axis = ["sy","sz", "input1Y","input1Z", "input1X"]
+    # hook it up
+    cmds.connectAttr(f"{norm}.outputX", f"{glob}.{axis[-1]}")
     if scldriver:
-        cmds.connectAttr(f"{scldriver}.sx", f"{glob}.input1X")
-        cmds.connectAttr(f"{scldriver}.sy", f"{glob}.input1Y")
+        cmds.connectAttr(f"{scldriver}.{axis[0]}", f"{glob}.{axis[2]}")
+        cmds.connectAttr(f"{scldriver}.{axis[1]}", f"{glob}.{axis[3]}")
     else:
-        cmds.connectAttr(f"{root}.sx", f"{glob}.input1X")
-        cmds.connectAttr(f"{root}.sy", f"{glob}.input1Y")
+        cmds.connectAttr(f"{root}.{axis[0]}", f"{glob}.{axis[2]}")
+        cmds.connectAttr(f"{root}.{axis[1]}", f"{glob}.{axis[3]}")
     cmds.connectAttr("global_CTRL.scale", f"{glob}.input2")
     cmds.connectAttr(f"{glob}.output", f"{bendy_buff}.scale")
 
@@ -426,6 +397,105 @@ def crv(name, points, degree):
     shape = cmds.listRelatives(curve, children = True, shapes = True)[0]
     cmds.rename(shape, name + "Shape")
     return curve
+                  
+def weightedscl(weight, input_attr, target):
+    """weighted = (scale - 1) * weight (+ 1)
+    creates 2 nodes for formula - add & mult
+    the (+ 1) comes after all the weighted scales have been chained up
+    target just for naming
+    return: addDoubleLinear.output attr"""
+    inname = input_attr.replace(".", "_") # e.g. mid_sx
+    targsuff = target.split("-")[-1]
+    targname = target.replace("_"+targsuff, "") # e.g. L_uparm_2
+    name = inname + "_" + targname # e.g. mid_sx_L_uparm_2
+    # nodes
+    minus = cmds.shadingNode("addDoubleLinear", n = name+"_MINUS", au = True)
+    cmds.setAttr(minus+".input2", -1)
+    mult = cmds.shadingNode("multDoubleLinear", n = name+"_MULT", au = True)
+    cmds.setAttr(mult+".input2", weight)
+    # connections
+    cmds.connectAttr(input_attr, minus+".input1")
+    cmds.connectAttr(minus+".output", mult+".input1")
+    return mult+".output"
+
+def thickness(target_joint, attr_node, ctrl_weight_dict, channels):
+    """attr_node is a transform with 1 attr per influence range
+    attributes need to match dict and channels
+    e.g. ctrl_weight dict = {
+        "start" : 0.75,
+        "mid" : 0.6,
+        "end" : 0.25,
+        "elbow" : 0.1}
+    """
+    for scl in channels: # e.g. [sx, sy]
+        ctrls = list(ctrl_weight_dict)
+        multchain = len(ctrls)
+        for nr, ctrl in enumerate(ctrls):
+            side = attr_node.split("_")[0]
+            attr = attr_node+"."+ctrl+"_"+scl # e.g. L_uparm_thick_GRP.start_sx
+            name = side + attr_node.split("_")[1] + "_thick_" + ctrl +"_"+scl 
+                # e.g. L_uparm_thick_start_sx
+            weight = ctrl_weight_dict[ctrl]
+### a way to ignore channels with weight 0
+            sclinfl = weightedscl(weight, attr, target_joint)
+            if nr == 0: # skip first one
+                previous = sclinfl
+            if nr > 0: # chain weighted scales to eachother
+                addname = attr.replace(".", "_") + f"_PLUS{nr}"
+                add = cmds.shadingNode("addDoubleLinear", n = addname, au = True)
+                cmds.connectAttr(previous, add+".input1")
+                cmds.connectAttr(sclinfl, add+".input2")
+                previous = add+".output"
+            if nr == len(ctrls) - 1: # last (+ 1) (* globScl) then plug into joint
+                plusname = attr.replace(".", "_") + "_end_PLUS"
+                plus = cmds.shadingNode("addDoubleLinear", n = plusname, au = True)
+                cmds.setAttr(plus+".input2", 1)
+                cmds.connectAttr(previous, plus+".input1")
+                # global scale
+                globname = name+"_globalScl_MULT"
+                glob = cmds.shadingNode("multDoubleLinear", n = globname, au = True)
+                cmds.connectAttr(plus+".output", glob+".input1")
+                cmds.connectAttr("global_CTRL.sy", glob+".input2")
+                cmds.connectAttr(glob+".output", target_joint+"."+scl, force = True)
+
+def chainthick(name, channels, joints):
+    """only for bendy chain of 5 joints!!
+    create thick_node with 1 attr per range + channel
+    then connect the channels into joint scales
+    return thick_node to plug in relevant ctrls with ikfk blending, mixing etc
+    """
+    thick_node = cmds.group(n = name, em = True)
+    util.lock(thick_node, vis = True)
+    for infl in ["start", "mid", "end"]:
+        for scl in channels:
+            cmds.addAttr(thick_node, longName = f"{infl}_{scl}", at = "double", dv = 1)
+            cmds.setAttr(f"{thick_node}.{infl}_{scl}", e = True, keyable = True)
+    # presets for standard bendy chain
+    # important!! start and end need to add up to 1 for each (for global scl to work)
+    joint1_w = {
+        "start" : 1,
+        "mid" : 0.1,
+        "end" : 0}
+    joint2_w = {
+        "start" : 0.75,
+        "mid" : 0.75,
+        "end" : 0.25}
+    joint3_w = {
+        "start" : 0.5,
+        "mid" : 1,
+        "end" : 0.5}
+    joint4_w = {
+        "start" : 0.25,
+        "mid" : 0.57,
+        "end" : 0.75}
+    joint5_w = {
+        "start" : 0,
+        "mid" : 0.1,
+        "end" : 1}
+    for nr, joint in enumerate(joints):
+        eval(f"thickness(joint, thick_node, joint{nr+1}_w, channels)")
+    
+    return thick_node
 
 if __name__ == "__main__":
     

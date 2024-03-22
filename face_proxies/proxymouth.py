@@ -4,9 +4,8 @@ from utils.ctrl_library import Nurbs
 from utils import util
 from utils import rig
 
-
-h = 150
-f = 16
+HEIGHT = 150
+FORW = 16
 
 class ProxyMouth(object):
     
@@ -18,50 +17,50 @@ class ProxyMouth(object):
         lip = 0.2
         self.proxy_dict = {
             "jaw_PRX" : (
-                [0, h, 0], "sphere", 1, "purple", 
+                [0, HEIGHT, 0], "sphere", 1, "purple", 
                 ["tx","r", "s"]),
             # "jaw_break_PRX" : (
-            #     [0, h-5, f/2], "sphere", 1, "blue", 
+            #     [0, HEIGHT-5, f/2], "sphere", 1, "blue", 
             #     ["tx","r","s"]),
             "chin_PRX" : (
-                [0, h-5, f], "sphere", 0.5, "sky", 
+                [0, HEIGHT-5, FORW], "sphere", 0.5, "sky", 
                 ["tx","r","s"]),
             "mouth_pivot_PRX" : (
-                [0, h, f*0.8], "sphere", 0.6, "yellow", 
+                [0, HEIGHT, FORW*0.8], "sphere", 0.6, "yellow", 
                 ["tx","r","s"]),
             # add chin and mentalis joints
             "jaw_ctrl_PRX" : (
-                [0, h-5, f], "circle", 0.6, "red", 
+                [0, HEIGHT-5, FORW], "circle", 0.6, "red", 
                 ["tx","r","s"]),
             "mouth_ctrl_PRX" : (
-                [0, h, f*1.2], "sphere", 0.6, "pink", 
+                [0, HEIGHT, FORW*1.2], "sphere", 0.6, "pink", 
                 ["tx","r","s"]),
             "upcenter_PRX" : (
-                [0, h+1, f], "sphere", lip, "pink", 
+                [0, HEIGHT+1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "upsneer_PRX" : (
-                [3, h+1, f], "sphere", lip, "pink", 
+                [3, HEIGHT+1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "upout_PRX" : (
-                [5, h+1, f], "sphere", lip, "pink", 
+                [5, HEIGHT+1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "uppinch_PRX" : (
-                [6, h+1, f], "sphere", lip, "pink", 
+                [6, HEIGHT+1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "lowcenter_PRX" : (
-                [0, h-1, f], "sphere", lip, "pink", 
+                [0, HEIGHT-1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "lowsneer_PRX" : (
-                [3, h-1, f], "sphere", lip, "pink", 
+                [3, HEIGHT-1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "lowout_PRX" : (
-                [5, h-1, f], "sphere", lip, "pink", 
+                [5, HEIGHT-1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "lowpinch_PRX" : (
-                [6, h-1, f], "sphere", lip, "pink", 
+                [6, HEIGHT-1, FORW], "sphere", lip, "pink", 
                 ["rx","rz","s"]),
             "corner_PRX" : (
-                [7, h, f], "sphere", lip*2, "red", 
+                [7, HEIGHT, FORW], "sphere", lip*2, "red", 
                 ["rx","rz","s"]),
         }
         self.proxies = list(self.proxy_dict)
@@ -104,13 +103,13 @@ class ProxyMouth(object):
         for part in ["uplip", "lowlip"]:
             incr = 2
             gap = 0
-            f = 18
+            lipforw = FORW + 2
             if part == "uplip":
-                height = h + 2
+                height = HEIGHT + 2
                 loops = 19
                 corners = True
             else:
-                height = h - 2
+                height = HEIGHT - 2
                 loops = 15 # without corners
                 corners = None
             for nr in range(loops):
@@ -129,7 +128,7 @@ class ProxyMouth(object):
                     size = 0.3
                 loc = cmds.spaceLocator(n = name)[0]
                 cmds.setAttr(loc+"Shape.localScale", size, size, size)
-                cmds.move(gap, height, f*1.2, loc)
+                cmds.move(gap, height, lipforw*1.2, loc)
                 cmds.parent(loc, vtx_grp)
                 gap = gap + incr
                 

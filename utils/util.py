@@ -180,6 +180,8 @@ def lock(transforms,
             cmds.setAttr(f"{obj}.{channel}", lock = True, keyable = False)
             if hide == True:
                 cmds.setAttr(f"{obj}.{channel}", channelBox = False)
+            else:
+                cmds.setAttr(f"{obj}.{channel}", channelBox = True)
             if vis == True:
                 cmds.setAttr(f"{obj}.v", lock = True, keyable = False)
                 cmds.setAttr(f"{obj}.v", channelBox = False)
@@ -188,10 +190,10 @@ def lock(transforms,
 def remap(name, inputattr, min, max, outmin = 0, outmax = 1, exp = False):
     rmpv = cmds.shadingNode("remapValue", n = name, au = True)
     cmds.connectAttr(inputattr, f"{rmpv}.inputValue")
-    cmds.setAttr(rmpv+".inputMin", min)
-    cmds.setAttr(rmpv+".inputMax", max)
-    cmds.setAttr(rmpv+".outputMin", outmin)
-    cmds.setAttr(rmpv+".outputMax", outmax)
+    # cmds.setAttr(rmpv+".inputMin", min)
+    # cmds.setAttr(rmpv+".inputMax", max)
+    # cmds.setAttr(rmpv+".outputMin", outmin)
+    # cmds.setAttr(rmpv+".outputMax", outmax)
     if exp == True:
         cmds.setAttr(rmpv+".value[0].value_Interp", 3)
         cmds.setAttr(rmpv+".value[1].value_Interp", 3)
@@ -204,6 +206,15 @@ def remap(name, inputattr, min, max, outmin = 0, outmax = 1, exp = False):
         cmds.setAttr(rmpv+".value[4].value_FloatValue", 0.6)
         cmds.setAttr(rmpv+".value[4].value_Position", 0.85)
         cmds.setAttr(rmpv+".value[4].value_Interp", 1)
+    hooks = {min : "inputMin", 
+             max : "inputMax", 
+             outmin : "outputMin", 
+             outmax : "outputMax"}
+    for connect in list(hooks):
+        if isinstance(connect, str):
+            cmds.connectAttr(connect, rmpv+"."+hooks[connect])
+        else:
+            cmds.setAttr(rmpv+"."+hooks[connect], connect)
     return rmpv
 
 def pointcurve(name, nodes, degree = 1):

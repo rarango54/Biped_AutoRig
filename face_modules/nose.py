@@ -8,9 +8,9 @@ from utils import rig
 
 class Nose(object):
     
-    def __init__(self):
+    def __init__(self, joint_socket, ctrl_socket, lipcorners):
 
-        self.module_name = "orbitals"
+        self.module_name = "nose"
         
         self.base_jnt = "nose_base_JNT"
         self.tip_jnt = "nose_tip_JNT"
@@ -22,6 +22,8 @@ class Nose(object):
         self.nostril_buff = "L_nostril_macro_GRP"
         
         self.nose_ctrls = []
+        
+        self.build_rig(joint_socket, ctrl_socket, lipcorners)
     
     def skeleton(self, joint_socket):
         pnose = ProxyNose()
@@ -138,8 +140,8 @@ class Nose(object):
             cmds.connectAttr(mult+".output", nostril_buff+".t")
             
     ### clean up attributes - lock & hide
-        util.lock(self.nostril, ["rx","ry","rz","sx","sy","sz"], rsidetoo = True)
-        util.lock(self.tip, ["rx","ry","rz","sx","sy","sz"])
+        util.lock(self.nostril, ["sx","sy","sz"], rsidetoo = True)
+        util.lock(self.tip, ["ry","rz","sx","sy","sz"])
 
 ### missing:
     ### columella ctrl
